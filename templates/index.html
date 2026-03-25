@@ -196,16 +196,17 @@ input[type=password] { font-family: monospace; letter-spacing: .05em; }
 
 .save-project-btn {
   padding: 8px 12px;
-  background: var(--accent);
-  border: none;
+  background: transparent;
+  border: 1px solid var(--border2);
   border-radius: var(--radius-sm);
-  color: #fff;
+  color: var(--muted2);
   font-size: 12px;
-  font-weight: 600;
+  font-weight: 500;
   white-space: nowrap;
-  transition: background .15s;
+  transition: all .15s;
 }
-.save-project-btn:hover { background: var(--accent-h); }
+.save-project-btn:hover:not(:disabled) { border-color: var(--accent); color: var(--accent); }
+.save-project-btn:disabled { opacity: .35; cursor: not-allowed; }
 .delete-project-btn {
   padding: 8px 10px;
   background: transparent;
@@ -519,7 +520,8 @@ input[type=password] { font-family: monospace; letter-spacing: .05em; }
 
   <!-- ── Projects ── -->
   <div class="form-section">
-    <div class="section-label">Project</div>
+    <div class="section-label">Saved Project</div>
+    <span class="help-text" style="margin-top:-4px">Load a saved project to fill all fields automatically — no need to re-enter details.</span>
     <div class="project-row">
       <div class="project-dropdown-wrap" id="project-dropdown-wrap">
         <button class="project-trigger" id="project-trigger" onclick="toggleProjectDropdown(event)">
@@ -634,7 +636,7 @@ input[type=password] { font-family: monospace; letter-spacing: .05em; }
 
   <button class="save-project-btn" id="save-project-btn"
           onclick="saveCurrentProject()" disabled
-          style="width:100%;padding:10px;font-size:13px;opacity:.4;cursor:not-allowed">
+          style="width:100%;padding:10px;font-size:13px">
     Save project
   </button>
 
@@ -834,13 +836,8 @@ let savedState = null; // null = no project loaded
 
 function updateSaveBtn() {
   const btn = document.getElementById('save-project-btn');
-  const current = JSON.stringify(getFormState());
-  const isDirty = current !== JSON.stringify(savedState);
   const hasContent = !!document.getElementById('site-url').value.trim();
-  const enabled = isDirty && hasContent;
-  btn.disabled = !enabled;
-  btn.style.opacity = enabled ? '1' : '0.4';
-  btn.style.cursor  = enabled ? 'pointer' : 'not-allowed';
+  btn.disabled = !hasContent;
   const name = currentProjectName ? `Save "${currentProjectName}"` : 'Save as new project';
   btn.textContent = name;
 }

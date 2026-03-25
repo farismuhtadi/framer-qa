@@ -92,8 +92,8 @@ class FigmaClient:
 
     def list_frames(self) -> list[dict]:
         """
-        Returns all top-level frames in the Figma file,
-        useful for discovering node IDs without opening the browser.
+        Returns all frames in the Figma file, including frames inside Sections.
+        Useful for discovering node IDs without opening the browser.
         """
         url = f"{FIGMA_API_BASE}/files/{self.file_id}"
         try:
@@ -105,12 +105,25 @@ class FigmaClient:
             return []
 
         frames = []
-        for page in data.get("document", {}).get("children", []):
-            for child in page.get("children", []):
-                if child.get("type") == "FRAME":
+
+        def collect_frames(children, page_name, section_name=None):
+            for child in children:
+                node_type = child.get("type")
+                if node_type == "FRAME":
+                    label = child["name"]
+                    if section_name:
+                        label = f"{section_name} / {label}"
                     frames.append({
-                        "name":    child["name"],
+                        "name":    label,
                         "node_id": child["id"],
-                        "page":    page["name"],
+                        "page":    page_name,
+                        "section": section_name or "",
                     })
+                elif node_type == "SECTION":
+                    # Recurse into sections to find nested frames
+                    collect_frames(child.get("children", []), page_name, child["name"])
+
+        for page in data.get("document", {}).get("children", []):
+            collect_frames(page.get("children", []), page["name"])
+
         return frames

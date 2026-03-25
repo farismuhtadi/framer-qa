@@ -165,7 +165,7 @@ async def _run_qa(job: "Job") -> str | None:
     has_figma = bool(
         figma_cfg.get("api_token")
         and figma_cfg.get("file_id")
-        and figma_cfg.get("page_frames")
+        and any(figma_cfg.get("page_frames", {}).values())
     )
 
     # Output dirs
@@ -230,7 +230,8 @@ async def _run_qa(job: "Job") -> str | None:
                 similarity = None
 
                 if has_figma and live_path:
-                    node_id = figma_cfg["page_frames"].get(path)
+                    frames_for_page = figma_cfg["page_frames"].get(path, {})
+                    node_id = frames_for_page.get(vp["name"])
                     if node_id:
                         print(f"   🎨 Fetching Figma frame {node_id}...")
                         try:
@@ -309,8 +310,13 @@ def api_run():
     # Build config
     figma_token    = (data.get("figma_token") or "").strip()
     figma_file_id  = (data.get("figma_file_id") or "").strip()
-    raw_frames     = data.get("page_frames") or []  # [{path, node_id}]
-    page_frames    = {r["path"]: r["node_id"] for r in raw_frames if r.get("path") and r.get("node_id")}
+    raw_frames     = data.get("page_frames") or []  # [{path, frames: {Desktop: id, Tablet: id, Mobile: id}}]
+    page_frames    = {}
+    for r in raw_frames:
+        p = (r.get("path") or "").strip()
+        vp_frames = r.get("frames") or {}
+        if p:
+            page_frames[p] = {k: v for k, v in vp_frames.items() if v}
 
     raw_viewports  = data.get("viewports") or []
     viewports = []

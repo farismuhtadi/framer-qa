@@ -92,7 +92,7 @@ header {
 /* ── Main content ────────────────────────────────────────────────────────── */
 main {
   display: grid;
-  grid-template-columns: 380px 1fr;
+  grid-template-columns: 400px 1fr;
   height: calc(100vh - 58px);
   overflow: hidden;
 }
@@ -210,18 +210,54 @@ input[type=password] { font-family: monospace; letter-spacing: .05em; }
 .mappings-table {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 8px;
 }
+
+/* Each mapping is a card with path + per-viewport node fields */
 .mapping-row {
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 10px 10px 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.mapping-path-row {
   display: grid;
-  grid-template-columns: 1fr 1fr auto;
+  grid-template-columns: 1fr auto;
   gap: 6px;
   align-items: center;
 }
-.mapping-row input {
+.mapping-path-row input {
   font-size: 12px;
   padding: 7px 10px;
 }
+.mapping-vp-fields {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding-left: 2px;
+}
+.vp-frame-row {
+  display: grid;
+  grid-template-columns: 64px 1fr;
+  gap: 6px;
+  align-items: center;
+}
+.vp-frame-label {
+  font-size: 11px;
+  color: var(--muted);
+  font-weight: 500;
+  white-space: nowrap;
+}
+.vp-frame-row input {
+  font-size: 12px;
+  padding: 5px 8px;
+  font-family: 'SF Mono', 'Fira Code', monospace;
+  letter-spacing: .02em;
+}
+
 .del-btn {
   width: 28px; height: 28px;
   background: transparent;
@@ -275,13 +311,15 @@ input[type=password] { font-family: monospace; letter-spacing: .05em; }
 /* ── Options ─────────────────────────────────────────────────────────────── */
 .toggle-row {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
   gap: 12px;
 }
+.toggle-label-group { display: flex; flex-direction: column; gap: 3px; }
 .toggle-label { font-size: 13px; color: var(--text); }
+.toggle-desc  { font-size: 11px; color: var(--muted); line-height: 1.4; }
 .toggle {
-  position: relative; width: 40px; height: 22px; flex-shrink: 0;
+  position: relative; width: 40px; height: 22px; flex-shrink: 0; margin-top: 1px;
 }
 .toggle input { opacity: 0; width: 0; height: 0; }
 .toggle-slider {
@@ -591,15 +629,19 @@ input[type=password] { font-family: monospace; letter-spacing: .05em; }
       <input type="password" id="figma-token" placeholder="figd_••••••••••••••••••••••"
              autocomplete="off" spellcheck="false">
       <span class="help-text">
-        <a href="https://figma.com" target="_blank">figma.com</a> → Account Settings → Security → Personal Access Tokens
+        <a href="https://figma.com" target="_blank">figma.com</a> → Account Settings → Security → Personal Access Tokens →
+        enable <code>file_content:read</code> and <code>file_metadata:read</code>
       </span>
     </div>
 
     <div class="field">
       <label>File ID</label>
-      <input type="text" id="figma-file-id" placeholder="AbCdEf12345xyz"
-             autocomplete="off" spellcheck="false">
-      <span class="help-text">From your Figma URL: <code>figma.com/design/<b>FILE_ID</b>/...</code></span>
+      <input type="text" id="figma-file-id" placeholder="AbCdEf12345xyz or paste full Figma URL"
+             autocomplete="off" spellcheck="false" oninput="autoExtractFileId(this)">
+      <span class="help-text">
+        Paste the full Figma URL and the File ID will be extracted automatically.<br>
+        Or copy it manually: <code>figma.com/design/<b>FILE_ID</b>/...</code>
+      </span>
     </div>
 
     <button class="fetch-frames-btn" id="fetch-frames-btn" onclick="fetchFrames()">
@@ -613,8 +655,10 @@ input[type=password] { font-family: monospace; letter-spacing: .05em; }
         Page → Frame mappings
       </label>
       <div class="help-text" style="margin-bottom:4px">
-        Click a frame above to add it, or type manually.
-        Node ID: copy link in Figma → <code>?node-id=123-456</code> → use <code>123:456</code>
+        Map each page path to a Figma frame <strong>per breakpoint</strong>. Click a frame above to
+        add it to Desktop, then fill in the Tablet and Mobile node IDs.<br><br>
+        To find a node ID: right-click a frame in Figma → <em>Copy link</em> →
+        take the <code>node-id=123-456</code> part → use <code>123:456</code> (replace <code>-</code> with <code>:</code>)
       </div>
       <div class="mappings-table" id="mappings-table"></div>
       <button class="add-row-btn" onclick="addMappingRow()">+ Add page mapping</button>
@@ -636,7 +680,10 @@ input[type=password] { font-family: monospace; letter-spacing: .05em; }
     <div class="section-label">Options</div>
 
     <div class="toggle-row">
-      <span class="toggle-label">SEO checks only (skip Figma diff)</span>
+      <div class="toggle-label-group">
+        <span class="toggle-label">SEO checks only</span>
+        <span class="toggle-desc">Skip visual diff — only run SEO &amp; metadata checks (faster, no Figma needed)</span>
+      </div>
       <label class="toggle">
         <input type="checkbox" id="seo-only">
         <span class="toggle-slider"></span>
@@ -644,13 +691,15 @@ input[type=password] { font-family: monospace; letter-spacing: .05em; }
     </div>
 
     <div class="field">
-      <label>Diff threshold (0–255, lower = stricter)</label>
+      <label>Diff threshold <span style="color:var(--muted);font-weight:400">(0–255)</span></label>
       <input type="number" id="diff-threshold" value="10" min="0" max="255">
+      <span class="help-text">Controls pixel-level sensitivity when comparing screenshots to Figma frames. Lower = stricter (0 is pixel-perfect, 30+ forgives minor rendering differences).</span>
     </div>
 
     <div class="field">
-      <label>Page timeout (ms)</label>
+      <label>Page timeout <span style="color:var(--muted);font-weight:400">(ms)</span></label>
       <input type="number" id="timeout-ms" value="15000" min="5000" max="60000" step="1000">
+      <span class="help-text">How long to wait for each page to fully load before taking a screenshot. Increase for slow or animation-heavy sites.</span>
     </div>
   </div>
 
@@ -780,23 +829,55 @@ function getViewports() {
 }
 
 // ── Page mapping rows ─────────────────────────────────────────────────────────
-function addMappingRow(path = '', nodeId = '') {
+// frames = { 'Desktop': '123:456', 'Tablet': '789:012', ... }
+function addMappingRow(path = '', frames = {}) {
+  const viewports = getViewports();
   const row = document.createElement('div');
   row.className = 'mapping-row';
+
+  const vpFields = viewports.map(vp => `
+    <div class="vp-frame-row">
+      <span class="vp-frame-label">${escHtml(vp.name)}</span>
+      <input type="text" class="map-node-id" data-vp="${escHtml(vp.name)}"
+             value="${escHtml(frames[vp.name] || '')}"
+             placeholder="node_id" spellcheck="false">
+    </div>`).join('');
+
   row.innerHTML = `
-    <input type="text" class="map-path"    value="${path}"   placeholder="/page-path">
-    <input type="text" class="map-node-id" value="${nodeId}" placeholder="0:1" spellcheck="false">
-    <button class="del-btn" onclick="this.closest('.mapping-row').remove()" title="Remove">×</button>`;
+    <div class="mapping-path-row">
+      <input type="text" class="map-path" value="${escHtml(path)}" placeholder="/page-path">
+      <button class="del-btn" onclick="this.closest('.mapping-row').remove()" title="Remove">×</button>
+    </div>
+    <div class="mapping-vp-fields">${vpFields}</div>`;
+
   document.getElementById('mappings-table').appendChild(row);
 }
 
 function getMappings() {
   return Array.from(document.querySelectorAll('.mapping-row'))
-    .map(row => ({
-      path:    row.querySelector('.map-path').value.trim(),
-      node_id: row.querySelector('.map-node-id').value.trim(),
-    }))
-    .filter(r => r.path && r.node_id);
+    .map(row => {
+      const path = row.querySelector('.map-path').value.trim();
+      const frames = {};
+      row.querySelectorAll('.map-node-id').forEach(input => {
+        const vp  = input.dataset.vp;
+        const val = input.value.trim();
+        if (vp && val) frames[vp] = val;
+      });
+      return { path, frames };
+    })
+    .filter(r => r.path && Object.keys(r.frames).length > 0);
+}
+
+// ── Figma File ID auto-extraction ─────────────────────────────────────────────
+function autoExtractFileId(input) {
+  const val = input.value.trim();
+  // Match figma.com/design/FILE_ID/ or figma.com/file/FILE_ID/ or figma.com/proto/FILE_ID/
+  const match = val.match(/figma\.com\/(?:design|file|proto)\/([A-Za-z0-9]+)/);
+  if (match) {
+    input.value = match[1];
+    input.style.borderColor = 'var(--pass)';
+    setTimeout(() => input.style.borderColor = '', 1500);
+  }
 }
 
 // ── Figma frame discovery ─────────────────────────────────────────────────────
@@ -830,16 +911,24 @@ async function fetchFrames() {
       data.frames.forEach(f => {
         const item = document.createElement('div');
         item.className = 'frame-item';
+        const sectionBadge = f.section
+          ? `<span style="color:var(--accent);font-size:10px;font-weight:600">§ ${escHtml(f.section)}</span> `
+          : '';
         item.innerHTML = `
-          <span class="frame-name">${escHtml(f.name)}</span>
+          <span class="frame-name">${sectionBadge}${escHtml(f.name)}</span>
           <span class="frame-meta">Page: ${escHtml(f.page)} &nbsp;·&nbsp; ID: ${escHtml(f.node_id)}</span>
-          <span class="frame-hint">Click to add mapping →</span>`;
+          <span class="frame-hint">Click to add as Desktop frame →</span>`;
         item.onclick = () => {
-          // Suggest a URL path based on frame name
-          const suggestedPath = '/' + f.name.toLowerCase()
+          // Suggest a URL path based on frame name (strip section prefix if present)
+          const rawName = f.name.includes(' / ') ? f.name.split(' / ').pop() : f.name;
+          const suggestedPath = '/' + rawName.toLowerCase()
             .replace(/\s+/g, '-').replace(/[^a-z0-9\-]/g, '');
           const finalPath = suggestedPath === '/home' ? '/' : suggestedPath;
-          addMappingRow(finalPath, f.node_id);
+          // Pre-fill Desktop (first viewport)
+          const viewports = getViewports();
+          const frames = {};
+          if (viewports.length > 0) frames[viewports[0].name] = f.node_id;
+          addMappingRow(finalPath, frames);
         };
         list.appendChild(item);
       });

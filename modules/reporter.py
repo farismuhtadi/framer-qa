@@ -13,7 +13,8 @@ from datetime import datetime
 from modules.comparator import similarity_label, similarity_color
 
 
-def generate_report(results: list[dict], config: dict, output_dir: str, timestamp: str) -> str:
+def generate_report(results: list[dict], config: dict, output_dir: str, timestamp: str,
+                    site_seo: dict | None = None) -> str:
     """
     Generates the HTML report and returns its file path.
     """
@@ -24,8 +25,7 @@ def generate_report(results: list[dict], config: dict, output_dir: str, timestam
     date_str    = datetime.now().strftime("%B %d, %Y at %H:%M")
     total_pages = len(results)
 
-    # Aggregate stats
-    total_checks = sum(r["seo"]["pass_count"] + r["seo"]["warn_count"] + r["seo"]["fail_count"] for r in results)
+    # Page-level SEO aggregate stats
     total_pass   = sum(r["seo"]["pass_count"] for r in results)
     total_warn   = sum(r["seo"]["warn_count"] for r in results)
     total_fail   = sum(r["seo"]["fail_count"] for r in results)
@@ -49,6 +49,7 @@ def generate_report(results: list[dict], config: dict, output_dir: str, timestam
         results=results,
         viewports=viewports,
         output_dir=output_dir,
+        site_seo=site_seo,
     )
 
     with open(report_path, "w", encoding="utf-8") as f:
@@ -62,7 +63,7 @@ def generate_report(results: list[dict], config: dict, output_dir: str, timestam
 # ══════════════════════════════════════════════════════════════════════════════
 
 def _render_html(*, site_url, date_str, total_pages, total_pass, total_warn,
-                 total_fail, avg_similarity, results, viewports, output_dir):
+                 total_fail, avg_similarity, results, viewports, output_dir, site_seo=None):
 
     pages_html = "\n".join(_render_page(r, viewports, output_dir) for r in results)
 
@@ -78,6 +79,8 @@ def _render_html(*, site_url, date_str, total_pages, total_pass, total_warn,
         sim_html = f'<div class="stat-card"><div class="stat-value {color}">{avg_similarity:.1f}%</div><div class="stat-label">Avg Visual Match</div></div>'
 
     pass_pct = round(total_pass / max(total_pass + total_fail, 1) * 100)
+
+    site_seo_html = _render_site_seo_section(site_seo) if site_seo else ""
 
     return f"""<!DOCTYPE html>
 <html lang="en">
@@ -301,6 +304,28 @@ def _render_html(*, site_url, date_str, total_pages, total_pass, total_warn,
   /* ── Tooltip ── */
   [title] {{ cursor: help; }}
 
+  /* ── Site-level checks grid ── */
+  .site-checks-grid {{
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+  }}
+  .site-check-card {{
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 16px 20px;
+    min-width: 160px;
+    flex: 1;
+    cursor: help;
+  }}
+  .site-check-card.pass {{ border-left: 3px solid var(--pass); }}
+  .site-check-card.warn {{ border-left: 3px solid var(--warn); }}
+  .site-check-card.fail {{ border-left: 3px solid var(--fail); }}
+  .site-check-icon {{ font-size: 20px; margin-bottom: 6px; }}
+  .site-check-name {{ font-weight: 600; font-size: 13px; margin-bottom: 4px; }}
+  .site-check-detail {{ color: var(--muted); font-size: 12px; }}
+
   /* ── Footer ── */
   .footer {{
     border-top: 1px solid var(--border);
@@ -347,9 +372,11 @@ def _render_html(*, site_url, date_str, total_pages, total_pass, total_warn,
     {sim_html}
   </div>
 
+  {site_seo_html}
+
   <!-- SEO Checks Table -->
   <div class="section">
-    <div class="section-title">📋 SEO &amp; Meta Checks</div>
+    <div class="section-title">📋 Page-level SEO</div>
     <div class="table-wrap">
       <table>
         <thead>
@@ -533,6 +560,38 @@ def _render_vp_panel(vp_result: dict, idx: int, group_id: str, safe_id: str, act
   </div>
   {no_figma_msg}
 </div>"""
+
+
+# ── Site SEO section ──────────────────────────────────────────────────────────
+
+def _render_site_seo_section(site_seo: dict) -> str:
+    """Renders a card-style section for site-level SEO checks (lang, favicon, OG, Twitter)."""
+    checks = site_seo.get("checks", [])
+    icon_map = {"pass": "✅", "warn": "⚠️", "fail": "❌"}
+
+    cards = ""
+    for c in checks:
+        status = c["status"]
+        icon   = icon_map.get(status, "")
+        detail = c["detail"] or ""
+        value  = c["value"] or ""
+        tip    = (detail + (" — " + value[:80] if value else "")).replace('"', "&quot;")
+        cards += f'''
+    <div class="site-check-card {status}" title="{tip}">
+      <div class="site-check-icon">{icon}</div>
+      <div class="site-check-name">{c["name"]}</div>
+      <div class="site-check-detail">{detail}</div>
+    </div>'''
+
+    return f'''
+  <div class="section">
+    <div class="section-title">🌐 Site-level Checks</div>
+    <p style="color:var(--muted);font-size:13px;margin-bottom:16px">
+      Checked once for the whole site — language, favicon, and social preview (OG tags).
+    </p>
+    <div class="site-checks-grid">{cards}
+    </div>
+  </div>'''
 
 
 # ── SEO table row ─────────────────────────────────────────────────────────────

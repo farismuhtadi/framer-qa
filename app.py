@@ -185,6 +185,17 @@ async def _run_qa(job: "Job") -> str | None:
     pages = get_pages_from_sitemap(site_url)
     print(f"   Found {len(pages)} page(s)")
 
+    # Site-level SEO — run once on the homepage
+    site_seo = None
+    async with ScreenshotTaker(viewports, config.get("timeout_ms", 15000)) as site_taker:
+        print("\n🌐 Checking site-level SEO (language, favicon, social preview)...")
+        try:
+            site_seo = await site_taker.check_site_seo(site_url)
+            p, w, f = site_seo["pass_count"], site_seo["warn_count"], site_seo["fail_count"]
+            print(f"   ✅ {p} pass  ⚠️  {w} warn  ❌ {f} fail")
+        except Exception as e:
+            print(f"   ⚠️  Site SEO check failed: {e}")
+
     # Helpers
     def page_path(url):
         p = url.replace(site_url, "").strip()
@@ -262,7 +273,7 @@ async def _run_qa(job: "Job") -> str | None:
 
     print(f"\n{'═'*55}")
     print("📊 Generating HTML report...")
-    report_path = generate_report(results, config, output_dir, timestamp)
+    report_path = generate_report(results, config, output_dir, timestamp, site_seo=site_seo)
     print(f"✅ Done! Report ready.")
     return report_path
 

@@ -532,7 +532,6 @@ input[type=password] { font-family: monospace; letter-spacing: .05em; }
           <div class="project-list" id="project-list"></div>
         </div>
       </div>
-      <button class="save-project-btn" onclick="saveCurrentProject()">Save</button>
       <button class="delete-project-btn" id="delete-project-btn" onclick="deleteCurrentProject()" title="Delete project" style="display:none">🗑</button>
     </div>
   </div>
@@ -596,7 +595,7 @@ input[type=password] { font-family: monospace; letter-spacing: .05em; }
   <!-- ── Viewports ── -->
   <div class="form-section">
     <div class="section-label">Viewports</div>
-    <div class="help-text">Name · Width (px) · Height is optional — defaults to 900px if blank</div>
+    <div class="help-text">Name · Width (px)</div>
     <div class="viewport-rows" id="viewport-rows"></div>
     <button class="add-vp-btn" onclick="addViewportRow()">+ Add viewport</button>
   </div>
@@ -632,6 +631,12 @@ input[type=password] { font-family: monospace; letter-spacing: .05em; }
   </div>
 
   <div class="error-banner" id="error-banner"></div>
+
+  <button class="save-project-btn" id="save-project-btn"
+          onclick="saveCurrentProject()" disabled
+          style="width:100%;padding:10px;font-size:13px;opacity:.4;cursor:not-allowed">
+    Save project
+  </button>
 
   <button class="run-btn" id="run-btn" onclick="startJob()">Run QA Check</button>
 
@@ -771,11 +776,13 @@ function selectProject(name) {
 
   // Update UI
   currentProjectName = name;
+  savedState = getFormState(); // mark as clean after load
   const t = document.getElementById('trigger-text');
   t.textContent = name;
   t.classList.add('has-value');
   document.getElementById('delete-project-btn').style.display = '';
   document.getElementById('project-dropdown').classList.remove('open');
+  updateSaveBtn();
 }
 
 function saveCurrentProject() {
@@ -788,10 +795,12 @@ function saveCurrentProject() {
   persistProjects(projects);
 
   currentProjectName = trimmed;
+  savedState = getFormState(); // mark as clean after save
   const t = document.getElementById('trigger-text');
   t.textContent = trimmed;
   t.classList.add('has-value');
   document.getElementById('delete-project-btn').style.display = '';
+  updateSaveBtn();
 }
 
 function deleteCurrentProject() {
@@ -819,6 +828,26 @@ function getFormState() {
     seo_only:       document.getElementById('seo-only').checked,
   };
 }
+
+// ── Dirty state tracking ──────────────────────────────────────────────────────
+let savedState = null; // null = no project loaded
+
+function updateSaveBtn() {
+  const btn = document.getElementById('save-project-btn');
+  const current = JSON.stringify(getFormState());
+  const isDirty = current !== JSON.stringify(savedState);
+  const hasContent = !!document.getElementById('site-url').value.trim();
+  const enabled = isDirty && hasContent;
+  btn.disabled = !enabled;
+  btn.style.opacity = enabled ? '1' : '0.4';
+  btn.style.cursor  = enabled ? 'pointer' : 'not-allowed';
+  const name = currentProjectName ? `Save "${currentProjectName}"` : 'Save as new project';
+  btn.textContent = name;
+}
+
+// Listen to any input/change in the sidebar
+document.querySelector('.sidebar').addEventListener('input',  updateSaveBtn);
+document.querySelector('.sidebar').addEventListener('change', updateSaveBtn);
 
 // Close dropdown when clicking outside
 document.addEventListener('click', e => {
@@ -866,12 +895,18 @@ function addViewportRow(vp = {}) {
   document.getElementById('viewport-rows').appendChild(row);
 }
 
+// Default heights per breakpoint name
+const VP_HEIGHTS = { Desktop: 900, Tablet: 1024, Mobile: 812 };
+
 function getViewports() {
-  return Array.from(document.querySelectorAll('.viewport-row')).map(row => ({
-    name:   row.querySelector('.vp-name').value.trim() || 'Custom',
-    width:  parseInt(row.querySelector('.vp-width').value) || 1440,
-    height: 900, // height is fixed internally; not needed for full-page screenshots
-  })).filter(vp => vp.width > 0);
+  return Array.from(document.querySelectorAll('.viewport-row')).map(row => {
+    const name = row.querySelector('.vp-name').value.trim() || 'Custom';
+    return {
+      name,
+      width:  parseInt(row.querySelector('.vp-width').value) || 1440,
+      height: VP_HEIGHTS[name] || 900,
+    };
+  }).filter(vp => vp.width > 0);
 }
 
 // ── Page mapping rows ─────────────────────────────────────────────────────────
@@ -892,7 +927,7 @@ function addMappingRow(path = '', frames = {}) {
 
   row.innerHTML = `
     <div class="mapping-path-row">
-      <input type="text" class="map-path" value="${escHtml(path)}" placeholder="/page-path">
+      <input type="text" class="map-path" value="${escHtml(path)}" placeholder="/framer-page-path">
       <button class="del-btn" onclick="this.closest('.mapping-row').remove()" title="Remove">×</button>
     </div>
     <div class="mapping-vp-fields">${vpFields}</div>`;

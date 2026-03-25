@@ -61,10 +61,29 @@ class ScreenshotTaker:
 
     # ── SEO Check ───────────────────────────────────────────────────────────────
 
+    async def check_site_seo(self, url: str) -> dict:
+        """
+        Loads the homepage once and checks site-level signals:
+        language, favicon, social preview (OG tags), Twitter card.
+        """
+        from modules.seo_checker import check_site_seo
+
+        context = await self._browser.new_context(
+            viewport={"width": 1440, "height": 900},
+            device_scale_factor=1,
+        )
+        page = await context.new_page()
+        try:
+            await page.goto(url, wait_until="networkidle", timeout=self.timeout_ms)
+            result = await check_site_seo(page, url)
+        finally:
+            await context.close()
+        return result
+
     async def check_seo(self, url: str) -> dict:
         """
-        Loads the page at desktop width and runs the SEO checker on it.
-        Imports seo_checker here to avoid circular imports.
+        Loads a page and checks page-level signals:
+        meta title, meta description, canonical URL, robots.
         """
         from modules.seo_checker import check_seo
 

@@ -198,7 +198,7 @@ async def _run_qa(job: "Job") -> str | None:
 
     # Helpers
     def page_path(url):
-        p = url.replace(site_url, "").strip()
+        p = url.replace(site_url, "").strip().rstrip("/")
         return p or "/"
 
     def safe_name(path):
@@ -324,9 +324,9 @@ def api_run():
     raw_frames     = data.get("page_frames") or []  # [{path, frames: {Desktop: id, Tablet: id, Mobile: id}}]
     page_frames    = {}
     for r in raw_frames:
-        p = (r.get("path") or "").strip()
+        p = (r.get("path") or "").strip().rstrip("/") or "/"
         vp_frames = r.get("frames") or {}
-        if p:
+        if vp_frames:
             page_frames[p] = {k: v for k, v in vp_frames.items() if v}
 
     raw_viewports  = data.get("viewports") or []

@@ -194,6 +194,14 @@ input[type=password] { font-family: monospace; letter-spacing: .05em; }
 .project-item:hover { background: var(--surface2); }
 .project-empty { padding: 10px 12px; font-size: 12px; color: var(--muted); }
 
+/* ── Project section card ────────────────────────────────────────────────── */
+.project-section {
+  background: var(--surface2);
+  border: 1px solid var(--border2);
+  border-radius: var(--radius-sm);
+  padding: 14px;
+}
+
 .save-project-btn {
   padding: 8px 12px;
   background: transparent;
@@ -519,7 +527,7 @@ input[type=password] { font-family: monospace; letter-spacing: .05em; }
 <aside class="sidebar">
 
   <!-- ── Projects ── -->
-  <div class="form-section">
+  <div class="form-section project-section">
     <div class="section-label">Saved Project</div>
     <span class="help-text" style="margin-top:-4px">Load a saved project to fill all fields automatically — no need to re-enter details.</span>
     <div class="project-row">
@@ -715,7 +723,13 @@ function loadProjects() {
 }
 
 function persistProjects(projects) {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(projects));
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(projects));
+    return true;
+  } catch (e) {
+    showToast('Could not save — localStorage may be blocked in this browser.', true);
+    return false;
+  }
 }
 
 function renderProjectList(filter = '') {
@@ -794,7 +808,8 @@ function saveCurrentProject() {
 
   const projects = loadProjects();
   projects[trimmed] = getFormState();
-  persistProjects(projects);
+  const ok = persistProjects(projects);
+  if (!ok) return;
 
   currentProjectName = trimmed;
   savedState = getFormState(); // mark as clean after save
@@ -803,6 +818,7 @@ function saveCurrentProject() {
   t.classList.add('has-value');
   document.getElementById('delete-project-btn').style.display = '';
   updateSaveBtn();
+  showToast(`Project "${trimmed}" saved ✓`);
 }
 
 function deleteCurrentProject() {
@@ -935,7 +951,9 @@ function addMappingRow(path = '', frames = {}) {
 function getMappings() {
   return Array.from(document.querySelectorAll('.mapping-row'))
     .map(row => {
-      const path = row.querySelector('.map-path').value.trim();
+      // Normalize path: strip trailing slash, default to /
+      const raw = row.querySelector('.map-path').value.trim();
+      const path = raw.replace(/\/+$/, '') || '/';
       const frames = {};
       row.querySelectorAll('.map-node-id').forEach(input => {
         const vp  = input.dataset.vp;
@@ -1208,6 +1226,25 @@ function showError(msg) {
   el.classList.add('visible');
 }
 function hideError() { document.getElementById('error-banner').classList.remove('visible'); }
+
+function showToast(msg, isError = false) {
+  let toast = document.getElementById('toast');
+  if (!toast) {
+    toast = document.createElement('div');
+    toast.id = 'toast';
+    toast.style.cssText = `position:fixed;bottom:24px;left:50%;transform:translateX(-50%);
+      padding:10px 20px;border-radius:8px;font-size:13px;font-weight:500;
+      color:#fff;z-index:9999;opacity:0;transition:opacity .2s;pointer-events:none;
+      white-space:nowrap;box-shadow:0 4px 16px rgba(0,0,0,.4)`;
+    document.body.appendChild(toast);
+  }
+  toast.textContent = msg;
+  toast.style.background = isError ? 'var(--fail)' : '#2a7a4b';
+  toast.style.opacity = '1';
+  clearTimeout(toast._timer);
+  toast._timer = setTimeout(() => { toast.style.opacity = '0'; }, 2500);
+}
+
 function escHtml(s) {
   return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }

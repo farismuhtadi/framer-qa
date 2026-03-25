@@ -95,9 +95,12 @@ class FigmaClient:
         Returns all frames in the Figma file, including frames inside Sections.
         Useful for discovering node IDs without opening the browser.
         """
+        # depth=3: document → pages → top-level nodes (frames/sections) → section children
+        # This avoids downloading the entire file (which can be hundreds of MB for large files)
         url = f"{FIGMA_API_BASE}/files/{self.file_id}"
+        params = {"depth": 3}
         try:
-            resp = self.session.get(url, timeout=30)
+            resp = self.session.get(url, params=params, timeout=60)
             resp.raise_for_status()
             data = resp.json()
         except Exception as e:

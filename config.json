@@ -1,0 +1,35 @@
+{
+  "_comment": "Framer QA Agent Configuration — fill in your details below",
+
+  "site_url": "https://your-site.framer.website",
+
+  "figma": {
+    "_comment_token": "Get your token at figma.com → Account Settings → Personal Access Tokens",
+    "api_token": "YOUR_FIGMA_API_TOKEN",
+
+    "_comment_file_id": "Found in the Figma file URL: figma.com/design/FILE_ID/...",
+    "file_id": "YOUR_FIGMA_FILE_ID",
+
+    "_comment_frames": "Map each URL path to a Figma node ID. To find a node ID: click a frame in Figma → right-click → Copy link → the node-id in the URL (replace - with :). Example: node-id=123-456 becomes '123:456'",
+    "page_frames": {
+      "/": "0:1",
+      "/about": "0:2",
+      "/contact": "0:3"
+    }
+  },
+
+  "viewports": [
+    { "name": "Desktop", "width": 1440, "height": 900 },
+    { "name": "Tablet",  "width": 768,  "height": 1024 },
+    { "name": "Mobile",  "width": 375,  "height": 812 }
+  ],
+
+  "_comment_output": "Folder where reports will be saved (created automatically)",
+  "output_dir": "reports",
+
+  "_comment_timeout": "Page load timeout in milliseconds",
+  "timeout_ms": 15000,
+
+  "_comment_diff_threshold": "Pixel diff sensitivity 0–255. Lower = stricter. 10 is recommended.",
+  "diff_threshold": 10
+}

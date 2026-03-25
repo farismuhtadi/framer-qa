@@ -1,0 +1,15 @@
+version: "3.9"
+
+services:
+  framer-qa:
+    build: .
+    ports:
+      - "8080:8080"
+    environment:
+      PORT: 8080
+      SECRET_KEY: change-me-in-production   # ← change this!
+      MAX_JOBS: 3
+      JOB_TTL_HOURS: 24
+    volumes:
+      - ./reports:/app/reports              # persist reports on host
+    restart: unless-stopped

@@ -1,0 +1,1067 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Framer QA</title>
+<style>
+/* ── Reset & Variables ───────────────────────────────────────────────────── */
+:root {
+  --bg:        #0f1117;
+  --surface:   #1a1d27;
+  --surface2:  #22263a;
+  --border:    #2a2d3a;
+  --border2:   #383c52;
+  --text:      #e4e6f0;
+  --muted:     #6b6f88;
+  --muted2:    #9295aa;
+  --pass:      #34c759;
+  --warn:      #ff9f0a;
+  --fail:      #ff3b30;
+  --accent:    #5e6ad2;
+  --accent-h:  #7b84e8;
+  --radius:    12px;
+  --radius-sm: 8px;
+  --shadow:    0 4px 24px rgba(0,0,0,.4);
+}
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  font-size: 14px;
+  line-height: 1.6;
+  min-height: 100vh;
+}
+a { color: var(--accent); text-decoration: none; }
+a:hover { text-decoration: underline; }
+button, input, select { font: inherit; }
+button { cursor: pointer; }
+
+/* ── Layout ──────────────────────────────────────────────────────────────── */
+.app {
+  display: grid;
+  grid-template-rows: auto 1fr;
+  min-height: 100vh;
+}
+
+/* ── Header ──────────────────────────────────────────────────────────────── */
+header {
+  border-bottom: 1px solid var(--border);
+  padding: 0 40px;
+  height: 58px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: var(--surface);
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}
+.logo {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-weight: 700;
+  font-size: 16px;
+}
+.logo-icon {
+  width: 28px; height: 28px;
+  background: var(--accent);
+  border-radius: 8px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 15px;
+}
+.header-nav {
+  display: flex;
+  gap: 8px;
+}
+.nav-btn {
+  padding: 6px 14px;
+  border-radius: var(--radius-sm);
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--muted2);
+  font-size: 13px;
+  font-weight: 500;
+  transition: all .15s;
+}
+.nav-btn:hover { color: var(--text); border-color: var(--border); }
+.nav-btn.active { background: var(--surface2); color: var(--text); border-color: var(--border); }
+
+/* ── Main content ────────────────────────────────────────────────────────── */
+main {
+  display: grid;
+  grid-template-columns: 380px 1fr;
+  height: calc(100vh - 58px);
+  overflow: hidden;
+}
+
+/* ── Sidebar form ────────────────────────────────────────────────────────── */
+.sidebar {
+  border-right: 1px solid var(--border);
+  overflow-y: auto;
+  padding: 28px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.form-section {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.section-label {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .8px;
+  color: var(--muted);
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+.field label {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--muted2);
+}
+.field label .req { color: var(--fail); margin-left: 2px; }
+
+input[type=text], input[type=url], input[type=number], input[type=password] {
+  width: 100%;
+  padding: 9px 12px;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text);
+  font-size: 13px;
+  transition: border-color .15s;
+  outline: none;
+}
+input:focus { border-color: var(--accent); }
+input::placeholder { color: var(--muted); }
+input[type=password] { font-family: monospace; letter-spacing: .05em; }
+
+.help-text {
+  font-size: 11px;
+  color: var(--muted);
+  line-height: 1.5;
+}
+.help-text code {
+  background: var(--surface2);
+  padding: 1px 5px;
+  border-radius: 4px;
+  font-size: 11px;
+}
+.help-text a { font-size: 11px; }
+
+/* Divider */
+.divider {
+  height: 1px;
+  background: var(--border);
+}
+
+/* ── Figma frames discover ───────────────────────────────────────────────── */
+.fetch-frames-btn {
+  padding: 7px 12px;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--muted2);
+  font-size: 12px;
+  font-weight: 500;
+  width: 100%;
+  transition: all .15s;
+}
+.fetch-frames-btn:hover { border-color: var(--accent); color: var(--accent); }
+.fetch-frames-btn:disabled { opacity: .5; cursor: not-allowed; }
+
+.frames-list {
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  max-height: 180px;
+  overflow-y: auto;
+  display: none;
+}
+.frames-list.visible { display: block; }
+.frame-item {
+  padding: 8px 12px;
+  cursor: pointer;
+  border-bottom: 1px solid var(--border);
+  font-size: 12px;
+  transition: background .1s;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.frame-item:last-child { border-bottom: none; }
+.frame-item:hover { background: var(--border); }
+.frame-item .frame-name { font-weight: 600; }
+.frame-item .frame-meta { color: var(--muted); font-size: 11px; }
+.frame-item .frame-hint { color: var(--accent); font-size: 11px; }
+
+/* ── Page mappings table ─────────────────────────────────────────────────── */
+.mappings-table {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.mapping-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr auto;
+  gap: 6px;
+  align-items: center;
+}
+.mapping-row input {
+  font-size: 12px;
+  padding: 7px 10px;
+}
+.del-btn {
+  width: 28px; height: 28px;
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--muted);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 14px;
+  transition: all .15s;
+  flex-shrink: 0;
+}
+.del-btn:hover { border-color: var(--fail); color: var(--fail); background: rgba(255,59,48,.1); }
+.add-row-btn {
+  padding: 7px 12px;
+  background: transparent;
+  border: 1px dashed var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--muted);
+  font-size: 12px;
+  width: 100%;
+  transition: all .15s;
+}
+.add-row-btn:hover { border-color: var(--accent); color: var(--accent); }
+
+/* ── Viewports ───────────────────────────────────────────────────────────── */
+.viewport-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.viewport-row {
+  display: grid;
+  grid-template-columns: 80px 1fr 1fr auto;
+  gap: 6px;
+  align-items: center;
+}
+.viewport-row input { font-size: 12px; padding: 7px 10px; }
+.vp-label { font-size: 12px; color: var(--muted2); font-weight: 500; }
+.add-vp-btn {
+  padding: 7px 12px;
+  background: transparent;
+  border: 1px dashed var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--muted);
+  font-size: 12px;
+  width: 100%;
+  transition: all .15s;
+}
+.add-vp-btn:hover { border-color: var(--accent); color: var(--accent); }
+
+/* ── Options ─────────────────────────────────────────────────────────────── */
+.toggle-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.toggle-label { font-size: 13px; color: var(--text); }
+.toggle {
+  position: relative; width: 40px; height: 22px; flex-shrink: 0;
+}
+.toggle input { opacity: 0; width: 0; height: 0; }
+.toggle-slider {
+  position: absolute; inset: 0;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 11px;
+  transition: .2s;
+  cursor: pointer;
+}
+.toggle-slider::before {
+  content: "";
+  position: absolute;
+  width: 16px; height: 16px;
+  border-radius: 50%;
+  background: var(--muted);
+  top: 2px; left: 2px;
+  transition: .2s;
+}
+.toggle input:checked + .toggle-slider { background: var(--accent); border-color: var(--accent); }
+.toggle input:checked + .toggle-slider::before { background: #fff; transform: translateX(18px); }
+
+/* ── Run button ──────────────────────────────────────────────────────────── */
+.run-btn {
+  padding: 13px 20px;
+  background: var(--accent);
+  border: none;
+  border-radius: var(--radius-sm);
+  color: #fff;
+  font-weight: 700;
+  font-size: 14px;
+  width: 100%;
+  transition: background .15s, transform .1s;
+}
+.run-btn:hover { background: var(--accent-h); }
+.run-btn:active { transform: scale(.98); }
+.run-btn:disabled { opacity: .5; cursor: not-allowed; transform: none; }
+
+/* ── Error banner ────────────────────────────────────────────────────────── */
+.error-banner {
+  background: rgba(255,59,48,.12);
+  border: 1px solid rgba(255,59,48,.3);
+  border-radius: var(--radius-sm);
+  padding: 10px 14px;
+  color: #ff6b60;
+  font-size: 13px;
+  display: none;
+}
+.error-banner.visible { display: block; }
+
+/* ── Right panel ─────────────────────────────────────────────────────────── */
+.panel {
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+.panel-view {
+  display: none;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+}
+.panel-view.active { display: flex; }
+
+/* ── Empty state ─────────────────────────────────────────────────────────── */
+.empty-state {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  color: var(--muted);
+  padding: 40px;
+  text-align: center;
+}
+.empty-icon { font-size: 48px; }
+.empty-state h2 { font-size: 18px; color: var(--muted2); font-weight: 600; }
+.empty-state p { font-size: 14px; max-width: 360px; line-height: 1.7; }
+
+/* ── Console / Running view ──────────────────────────────────────────────── */
+.console-header {
+  padding: 16px 24px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-shrink: 0;
+}
+.console-title {
+  font-weight: 600;
+  font-size: 15px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.spinner {
+  width: 16px; height: 16px;
+  border: 2px solid var(--border);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin .7s linear infinite;
+  flex-shrink: 0;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+.status-done .spinner { display: none; }
+
+.progress-bar-wrap {
+  height: 3px;
+  background: var(--border);
+  flex-shrink: 0;
+}
+.progress-bar-fill {
+  height: 100%;
+  background: var(--accent);
+  transition: width .5s ease;
+  border-radius: 0 2px 2px 0;
+}
+
+.console-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px 24px;
+  font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', monospace;
+  font-size: 12px;
+  line-height: 1.8;
+  background: var(--bg);
+}
+.log-line { color: var(--muted2); white-space: pre-wrap; word-break: break-word; }
+.log-line.em { color: var(--text); }
+.log-line.pass { color: var(--pass); }
+.log-line.warn { color: var(--warn); }
+.log-line.fail { color: var(--fail); }
+.log-line.sep  { color: var(--border2); }
+
+.console-footer {
+  padding: 16px 24px;
+  border-top: 1px solid var(--border);
+  flex-shrink: 0;
+}
+.done-actions {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+.open-report-btn {
+  padding: 10px 20px;
+  background: var(--accent);
+  border: none;
+  border-radius: var(--radius-sm);
+  color: #fff;
+  font-weight: 600;
+  font-size: 13px;
+  transition: background .15s;
+}
+.open-report-btn:hover { background: var(--accent-h); }
+.new-check-btn {
+  padding: 10px 20px;
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--muted2);
+  font-size: 13px;
+  transition: all .15s;
+}
+.new-check-btn:hover { border-color: var(--text); color: var(--text); }
+
+/* ── Report view ─────────────────────────────────────────────────────────── */
+.report-toolbar {
+  padding: 12px 20px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-shrink: 0;
+}
+.report-url-badge {
+  flex: 1;
+  padding: 6px 12px;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--muted2);
+  font-size: 12px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.open-tab-btn {
+  padding: 6px 14px;
+  background: var(--accent);
+  border: none;
+  border-radius: 6px;
+  color: #fff;
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+  transition: background .15s;
+}
+.open-tab-btn:hover { background: var(--accent-h); }
+.back-btn {
+  padding: 6px 14px;
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--muted2);
+  font-size: 12px;
+  transition: all .15s;
+}
+.back-btn:hover { border-color: var(--text); color: var(--text); }
+
+.report-iframe-wrap { flex: 1; overflow: hidden; }
+.report-iframe-wrap iframe {
+  width: 100%; height: 100%;
+  border: none;
+  background: #0f1117;
+}
+
+/* ── History panel ───────────────────────────────────────────────────────── */
+.history-view { padding: 28px; overflow-y: auto; }
+.history-title { font-size: 16px; font-weight: 600; margin-bottom: 20px; }
+.history-empty { color: var(--muted); font-size: 14px; }
+.history-list { display: flex; flex-direction: column; gap: 10px; }
+.history-item {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 14px 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.history-item-left { overflow: hidden; }
+.history-item .site { font-weight: 500; font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.history-item .date { font-size: 11px; color: var(--muted); margin-top: 2px; }
+.history-status {
+  padding: 3px 10px;
+  border-radius: 20px;
+  font-size: 11px;
+  font-weight: 600;
+  flex-shrink: 0;
+}
+.history-status.done    { background: rgba(52,199,89,.15); color: var(--pass); }
+.history-status.running { background: rgba(94,106,210,.15); color: var(--accent); }
+.history-status.error   { background: rgba(255,59,48,.15); color: var(--fail); }
+.history-status.queued  { background: rgba(255,159,10,.15); color: var(--warn); }
+.history-report-btn {
+  padding: 5px 12px;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--accent);
+  font-size: 12px;
+  font-weight: 500;
+  white-space: nowrap;
+  transition: all .15s;
+}
+.history-report-btn:hover { background: rgba(94,106,210,.1); border-color: var(--accent); }
+
+/* ── Responsive ──────────────────────────────────────────────────────────── */
+@media (max-width: 768px) {
+  main { grid-template-columns: 1fr; }
+  .panel { display: none; }
+  header { padding: 0 16px; }
+  .sidebar { padding: 20px 16px; }
+}
+</style>
+</head>
+<body>
+<div class="app">
+
+<!-- ── Header ── -->
+<header>
+  <div class="logo">
+    <div class="logo-icon">🔍</div>
+    Framer QA
+  </div>
+  <nav class="header-nav">
+    <button class="nav-btn active" onclick="showTab('configure')">Configure</button>
+    <button class="nav-btn" id="nav-running" onclick="showTab('running')">Running</button>
+    <button class="nav-btn" id="nav-history" onclick="showTab('history'); loadHistory()">History</button>
+  </nav>
+</header>
+
+<main>
+
+<!-- ── Sidebar (form) ── -->
+<aside class="sidebar">
+
+  <div class="form-section">
+    <div class="section-label">Site</div>
+
+    <div class="field">
+      <label>Site URL <span class="req">*</span></label>
+      <input type="url" id="site-url" placeholder="https://your-site.framer.website" autocomplete="off">
+    </div>
+  </div>
+
+  <div class="divider"></div>
+
+  <div class="form-section">
+    <div class="section-label">Figma (optional)</div>
+
+    <div class="field">
+      <label>API Token</label>
+      <input type="password" id="figma-token" placeholder="figd_••••••••••••••••••••••"
+             autocomplete="off" spellcheck="false">
+      <span class="help-text">
+        <a href="https://figma.com" target="_blank">figma.com</a> → Account Settings → Security → Personal Access Tokens
+      </span>
+    </div>
+
+    <div class="field">
+      <label>File ID</label>
+      <input type="text" id="figma-file-id" placeholder="AbCdEf12345xyz"
+             autocomplete="off" spellcheck="false">
+      <span class="help-text">From your Figma URL: <code>figma.com/design/<b>FILE_ID</b>/...</code></span>
+    </div>
+
+    <button class="fetch-frames-btn" id="fetch-frames-btn" onclick="fetchFrames()">
+      🔎 Fetch frames from Figma file
+    </button>
+
+    <div class="frames-list" id="frames-list"></div>
+
+    <div class="form-section" id="mappings-section" style="gap:8px">
+      <label style="font-size:12px;font-weight:500;color:var(--muted2)">
+        Page → Frame mappings
+      </label>
+      <div class="help-text" style="margin-bottom:4px">
+        Click a frame above to add it, or type manually.
+        Node ID: copy link in Figma → <code>?node-id=123-456</code> → use <code>123:456</code>
+      </div>
+      <div class="mappings-table" id="mappings-table"></div>
+      <button class="add-row-btn" onclick="addMappingRow()">+ Add page mapping</button>
+    </div>
+  </div>
+
+  <div class="divider"></div>
+
+  <div class="form-section">
+    <div class="section-label">Viewports</div>
+    <div class="help-text">Name, width (px), height (px)</div>
+    <div class="viewport-rows" id="viewport-rows"></div>
+    <button class="add-vp-btn" onclick="addViewportRow()">+ Add viewport</button>
+  </div>
+
+  <div class="divider"></div>
+
+  <div class="form-section">
+    <div class="section-label">Options</div>
+
+    <div class="toggle-row">
+      <span class="toggle-label">SEO checks only (skip Figma diff)</span>
+      <label class="toggle">
+        <input type="checkbox" id="seo-only">
+        <span class="toggle-slider"></span>
+      </label>
+    </div>
+
+    <div class="field">
+      <label>Diff threshold (0–255, lower = stricter)</label>
+      <input type="number" id="diff-threshold" value="10" min="0" max="255">
+    </div>
+
+    <div class="field">
+      <label>Page timeout (ms)</label>
+      <input type="number" id="timeout-ms" value="15000" min="5000" max="60000" step="1000">
+    </div>
+  </div>
+
+  <div class="error-banner" id="error-banner"></div>
+
+  <button class="run-btn" id="run-btn" onclick="startJob()">
+    Run QA Check
+  </button>
+
+</aside>
+
+<!-- ── Right panel ── -->
+<div class="panel">
+
+  <!-- Empty state -->
+  <div class="panel-view active" id="view-empty">
+    <div class="empty-state">
+      <div class="empty-icon">🔍</div>
+      <h2>Ready to run</h2>
+      <p>Fill in your site URL on the left and click <strong>Run QA Check</strong>.<br>Results will appear here.</p>
+    </div>
+  </div>
+
+  <!-- Running view -->
+  <div class="panel-view" id="view-running">
+    <div class="console-header">
+      <div class="console-title">
+        <div class="spinner" id="run-spinner"></div>
+        <span id="run-title">Running QA check…</span>
+      </div>
+      <span id="run-progress-label" style="font-size:13px;color:var(--muted)">0%</span>
+    </div>
+    <div class="progress-bar-wrap">
+      <div class="progress-bar-fill" id="progress-bar" style="width:2%"></div>
+    </div>
+    <div class="console-body" id="console-body"></div>
+    <div class="console-footer" id="console-footer" style="display:none">
+      <div class="done-actions">
+        <button class="open-report-btn" id="open-report-btn" onclick="openReport()">Open Report</button>
+        <button class="new-check-btn" onclick="resetToForm()">New check</button>
+        <span id="done-status" style="font-size:13px;color:var(--muted)"></span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Report embed view -->
+  <div class="panel-view" id="view-report">
+    <div class="report-toolbar">
+      <button class="back-btn" onclick="backToConsole()">← Console</button>
+      <div class="report-url-badge" id="report-url-badge"></div>
+      <button class="open-tab-btn" id="open-tab-btn" onclick="openReportTab()">↗ Open in new tab</button>
+    </div>
+    <div class="report-iframe-wrap">
+      <iframe id="report-iframe" src="about:blank" sandbox="allow-same-origin allow-scripts"></iframe>
+    </div>
+  </div>
+
+  <!-- History view -->
+  <div class="panel-view" id="view-history">
+    <div class="history-view">
+      <div class="history-title">Recent checks</div>
+      <div id="history-content" class="history-empty">No checks yet.</div>
+    </div>
+  </div>
+
+</div><!-- .panel -->
+
+</main>
+</div>
+
+<script>
+// ── State ─────────────────────────────────────────────────────────────────────
+let currentJobId = null;
+let pollTimer = null;
+let logOffset = 0;
+let currentReportUrl = null;
+
+// ── Viewport defaults ─────────────────────────────────────────────────────────
+const DEFAULT_VIEWPORTS = [
+  { name: 'Desktop', width: 1440, height: 900  },
+  { name: 'Tablet',  width: 768,  height: 1024 },
+  { name: 'Mobile',  width: 375,  height: 812  },
+];
+
+// ── Init ──────────────────────────────────────────────────────────────────────
+(function init() {
+  DEFAULT_VIEWPORTS.forEach(vp => addViewportRow(vp));
+  addMappingRow();
+})();
+
+// ── Tab navigation ─────────────────────────────────────────────────────────────
+function showTab(tab) {
+  document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('.panel-view').forEach(v => v.classList.remove('active'));
+
+  if (tab === 'configure') {
+    document.querySelector('[onclick="showTab(\'configure\')"]').classList.add('active');
+    const active = currentJobId ? 'view-running' : 'view-empty';
+    document.getElementById(active).classList.add('active');
+  } else if (tab === 'running') {
+    document.getElementById('nav-running').classList.add('active');
+    document.getElementById('view-running').classList.add('active');
+  } else if (tab === 'history') {
+    document.getElementById('nav-history').classList.add('active');
+    document.getElementById('view-history').classList.add('active');
+  }
+}
+
+// ── Viewport rows ─────────────────────────────────────────────────────────────
+function addViewportRow(vp = {}) {
+  const row = document.createElement('div');
+  row.className = 'viewport-row';
+  row.innerHTML = `
+    <input type="text" class="vp-name" value="${vp.name || ''}" placeholder="Name">
+    <input type="number" class="vp-width" value="${vp.width || ''}" placeholder="Width" min="320">
+    <input type="number" class="vp-height" value="${vp.height || ''}" placeholder="Height" min="400">
+    <button class="del-btn" onclick="this.closest('.viewport-row').remove()" title="Remove">×</button>`;
+  document.getElementById('viewport-rows').appendChild(row);
+}
+
+function getViewports() {
+  return Array.from(document.querySelectorAll('.viewport-row')).map(row => ({
+    name:   row.querySelector('.vp-name').value.trim()  || 'Custom',
+    width:  parseInt(row.querySelector('.vp-width').value)  || 1440,
+    height: parseInt(row.querySelector('.vp-height').value) || 900,
+  })).filter(vp => vp.width > 0);
+}
+
+// ── Page mapping rows ─────────────────────────────────────────────────────────
+function addMappingRow(path = '', nodeId = '') {
+  const row = document.createElement('div');
+  row.className = 'mapping-row';
+  row.innerHTML = `
+    <input type="text" class="map-path"    value="${path}"   placeholder="/page-path">
+    <input type="text" class="map-node-id" value="${nodeId}" placeholder="0:1" spellcheck="false">
+    <button class="del-btn" onclick="this.closest('.mapping-row').remove()" title="Remove">×</button>`;
+  document.getElementById('mappings-table').appendChild(row);
+}
+
+function getMappings() {
+  return Array.from(document.querySelectorAll('.mapping-row'))
+    .map(row => ({
+      path:    row.querySelector('.map-path').value.trim(),
+      node_id: row.querySelector('.map-node-id').value.trim(),
+    }))
+    .filter(r => r.path && r.node_id);
+}
+
+// ── Figma frame discovery ─────────────────────────────────────────────────────
+async function fetchFrames() {
+  const token  = document.getElementById('figma-token').value.trim();
+  const fileId = document.getElementById('figma-file-id').value.trim();
+  const btn    = document.getElementById('fetch-frames-btn');
+  const list   = document.getElementById('frames-list');
+
+  if (!token || !fileId) {
+    showError('Enter your Figma API token and File ID first.');
+    return;
+  }
+  btn.disabled = true;
+  btn.textContent = '⏳ Fetching…';
+  list.classList.remove('visible');
+  list.innerHTML = '';
+
+  try {
+    const res  = await fetch('/api/figma/frames', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ api_token: token, file_id: fileId }),
+    });
+    const data = await res.json();
+    if (data.error) throw new Error(data.error);
+
+    if (!data.frames.length) {
+      list.innerHTML = '<div style="padding:12px;color:var(--muted);font-size:12px">No frames found in this file.</div>';
+    } else {
+      data.frames.forEach(f => {
+        const item = document.createElement('div');
+        item.className = 'frame-item';
+        item.innerHTML = `
+          <span class="frame-name">${escHtml(f.name)}</span>
+          <span class="frame-meta">Page: ${escHtml(f.page)} &nbsp;·&nbsp; ID: ${escHtml(f.node_id)}</span>
+          <span class="frame-hint">Click to add mapping →</span>`;
+        item.onclick = () => {
+          // Suggest a URL path based on frame name
+          const suggestedPath = '/' + f.name.toLowerCase()
+            .replace(/\s+/g, '-').replace(/[^a-z0-9\-]/g, '');
+          const finalPath = suggestedPath === '/home' ? '/' : suggestedPath;
+          addMappingRow(finalPath, f.node_id);
+        };
+        list.appendChild(item);
+      });
+    }
+    list.classList.add('visible');
+  } catch (err) {
+    showError('Figma error: ' + err.message);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '🔎 Fetch frames from Figma file';
+  }
+}
+
+// ── Start job ─────────────────────────────────────────────────────────────────
+async function startJob() {
+  hideError();
+  const siteUrl = document.getElementById('site-url').value.trim();
+  if (!siteUrl) { showError('Site URL is required.'); return; }
+  if (!siteUrl.startsWith('http')) { showError('Site URL must start with http:// or https://'); return; }
+
+  const body = {
+    site_url:        siteUrl,
+    figma_token:     document.getElementById('figma-token').value.trim(),
+    figma_file_id:   document.getElementById('figma-file-id').value.trim(),
+    page_frames:     getMappings(),
+    viewports:       getViewports(),
+    diff_threshold:  parseInt(document.getElementById('diff-threshold').value) || 10,
+    timeout_ms:      parseInt(document.getElementById('timeout-ms').value) || 15000,
+    seo_only:        document.getElementById('seo-only').checked,
+  };
+
+  document.getElementById('run-btn').disabled = true;
+  document.getElementById('run-btn').textContent = 'Starting…';
+
+  try {
+    const res  = await fetch('/api/run', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+    const data = await res.json();
+    if (data.error) throw new Error(data.error);
+
+    currentJobId = data.job_id;
+    logOffset    = 0;
+    resetConsole();
+    switchPanel('view-running');
+    showTab('running');
+    startPolling();
+  } catch (err) {
+    showError(err.message);
+    document.getElementById('run-btn').disabled = false;
+    document.getElementById('run-btn').textContent = 'Run QA Check';
+  }
+}
+
+// ── Polling ───────────────────────────────────────────────────────────────────
+function startPolling() {
+  if (pollTimer) clearInterval(pollTimer);
+  pollTimer = setInterval(poll, 1200);
+  poll(); // immediate first call
+}
+
+async function poll() {
+  if (!currentJobId) return;
+  try {
+    const res  = await fetch(`/api/status/${currentJobId}?since=${logOffset}`);
+    if (!res.ok) return;
+    const data = await res.json();
+
+    // Append new log lines
+    data.logs.forEach(line => appendLog(line));
+    logOffset = data.log_count;
+
+    // Update progress bar
+    const pct = Math.round(data.progress * 100);
+    document.getElementById('progress-bar').style.width = pct + '%';
+    document.getElementById('run-progress-label').textContent = pct + '%';
+
+    if (data.status === 'done') {
+      clearInterval(pollTimer);
+      currentReportUrl = data.report_url;
+      onJobDone(data);
+    } else if (data.status === 'error') {
+      clearInterval(pollTimer);
+      onJobError(data);
+    }
+  } catch (e) { /* network hiccup, retry */ }
+}
+
+function onJobDone(data) {
+  document.getElementById('progress-bar').style.width = '100%';
+  document.getElementById('run-progress-label').textContent = '100%';
+  document.getElementById('run-spinner').style.display = 'none';
+  document.getElementById('run-title').textContent = '✅ QA check complete';
+  document.getElementById('console-footer').style.display = 'block';
+  document.getElementById('done-status').textContent = '';
+
+  document.getElementById('run-btn').disabled = false;
+  document.getElementById('run-btn').textContent = 'Run QA Check';
+
+  appendLog('', 'sep');
+  appendLog('✅  Report is ready — click "Open Report" to view', 'pass');
+}
+
+function onJobError(data) {
+  document.getElementById('run-spinner').style.display = 'none';
+  document.getElementById('run-title').textContent = '❌ QA check failed';
+  document.getElementById('console-footer').style.display = 'block';
+  document.getElementById('open-report-btn').style.display = 'none';
+  document.getElementById('done-status').textContent = data.error || 'Unknown error';
+
+  document.getElementById('run-btn').disabled = false;
+  document.getElementById('run-btn').textContent = 'Run QA Check';
+}
+
+// ── Console ───────────────────────────────────────────────────────────────────
+function resetConsole() {
+  document.getElementById('console-body').innerHTML = '';
+  document.getElementById('console-footer').style.display = 'none';
+  document.getElementById('open-report-btn').style.display = '';
+  document.getElementById('run-title').textContent = 'Running QA check…';
+  document.getElementById('run-spinner').style.display = '';
+  document.getElementById('progress-bar').style.width = '2%';
+  document.getElementById('run-progress-label').textContent = '0%';
+}
+
+function appendLog(msg, cls = '') {
+  const body = document.getElementById('console-body');
+  if (!cls) {
+    if (msg.includes('✅'))          cls = 'pass';
+    else if (msg.includes('⚠️') || msg.includes('⚠'))  cls = 'warn';
+    else if (msg.includes('❌'))     cls = 'fail';
+    else if (msg.startsWith('═') || msg.startsWith('─')) cls = 'sep';
+    else if (msg.startsWith('📄') || msg.startsWith('🗺') ||
+             msg.startsWith('📊') || msg.startsWith('🔍')) cls = 'em';
+  }
+  const line = document.createElement('div');
+  line.className = 'log-line' + (cls ? ' ' + cls : '');
+  line.textContent = msg;
+  body.appendChild(line);
+  body.scrollTop = body.scrollHeight;
+}
+
+// ── Report ────────────────────────────────────────────────────────────────────
+function openReport() {
+  if (!currentReportUrl) return;
+  document.getElementById('report-iframe').src = currentReportUrl;
+  document.getElementById('report-url-badge').textContent = currentReportUrl;
+  switchPanel('view-report');
+}
+
+function openReportTab() {
+  if (currentReportUrl) window.open(currentReportUrl, '_blank');
+}
+
+function backToConsole() {
+  switchPanel('view-running');
+}
+
+// ── History ───────────────────────────────────────────────────────────────────
+async function loadHistory() {
+  const el = document.getElementById('history-content');
+  try {
+    const res  = await fetch('/api/jobs');
+    const jobs = await res.json();
+    if (!jobs.length) { el.innerHTML = '<div class="history-empty">No checks yet.</div>'; return; }
+
+    el.innerHTML = '<div class="history-list">' + jobs.map(j => `
+      <div class="history-item">
+        <div class="history-item-left">
+          <div class="site">${escHtml(j.site_url)}</div>
+          <div class="date">${formatDate(j.created_at)}</div>
+        </div>
+        <span class="history-status ${j.status}">${j.status}</span>
+        ${j.report_url ? `<button class="history-report-btn" onclick="loadHistoryReport('${j.report_url}')">View report</button>` : ''}
+      </div>`).join('') + '</div>';
+  } catch (e) {
+    el.innerHTML = '<div class="history-empty">Could not load history.</div>';
+  }
+}
+
+function loadHistoryReport(url) {
+  currentReportUrl = url;
+  document.getElementById('report-iframe').src = url;
+  document.getElementById('report-url-badge').textContent = url;
+  switchPanel('view-report');
+  document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+}
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+function switchPanel(viewId) {
+  document.querySelectorAll('.panel-view').forEach(v => v.classList.remove('active'));
+  document.getElementById(viewId).classList.add('active');
+}
+
+function resetToForm() {
+  currentJobId = null;
+  if (pollTimer) { clearInterval(pollTimer); pollTimer = null; }
+  switchPanel('view-empty');
+  document.getElementById('run-btn').disabled = false;
+  document.getElementById('run-btn').textContent = 'Run QA Check';
+  showTab('configure');
+}
+
+function showError(msg) {
+  const el = document.getElementById('error-banner');
+  el.textContent = msg;
+  el.classList.add('visible');
+}
+
+function hideError() {
+  document.getElementById('error-banner').classList.remove('visible');
+}
+
+function escHtml(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function formatDate(ts) {
+  return new Date(ts * 1000).toLocaleString();
+}
+</script>
+</body>
+</html>

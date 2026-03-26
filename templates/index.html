@@ -540,8 +540,8 @@ input[type=password] { font-family: monospace; letter-spacing: .05em; }
   </div>
   <nav class="header-nav">
     <button class="nav-btn active" onclick="showTab('configure')">Configure</button>
-    <button class="nav-btn" id="nav-running" onclick="showTab('running')">Running</button>
-    <button class="nav-btn" id="nav-history" onclick="showTab('history'); loadHistory()">History</button>
+    <button class="nav-btn" id="nav-running" onclick="showTab('running')" style="display:none">Running</button>
+    <button class="nav-btn" id="nav-history" onclick="showTab('history'); loadHistory()" style="display:none">History</button>
   </nav>
 </header>
 
@@ -924,6 +924,10 @@ const DEFAULT_VIEWPORTS = [
 (function init() {
   DEFAULT_VIEWPORTS.forEach(vp => addViewportRow(vp));
   addMappingRow();
+  // Silently check if there's any history so we can show the tab
+  fetch('/api/jobs').then(r => r.json()).then(jobs => {
+    if (jobs.length) document.getElementById('nav-history').style.display = '';
+  }).catch(() => {});
 })();
 
 // ── Tab navigation ─────────────────────────────────────────────────────────────
@@ -1172,6 +1176,7 @@ async function startJob() {
     currentJobId = data.job_id;
     logOffset    = 0;
     resetConsole();
+    document.getElementById('nav-running').style.display = '';
     switchPanel('view-running');
     showTab('running');
     startPolling();
@@ -1273,6 +1278,7 @@ async function loadHistory() {
     const res  = await fetch('/api/jobs');
     const jobs = await res.json();
     if (!jobs.length) { el.innerHTML = '<div class="history-empty">No checks yet.</div>'; return; }
+    document.getElementById('nav-history').style.display = '';
     el.innerHTML = '<div class="history-list">' + jobs.map(j => `
       <div class="history-item">
         <div class="history-item-left">

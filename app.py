@@ -204,7 +204,11 @@ async def _run_qa(job: "Job") -> str | None:
     def safe_name(path):
         return path.strip("/").replace("/", "_") or "home"
 
-    figma_client = FigmaClient(figma_cfg["api_token"], figma_cfg["file_id"]) if has_figma else None
+    seo_only     = config.get("seo_only", False)
+    figma_client = FigmaClient(figma_cfg["api_token"], figma_cfg["file_id"]) if (has_figma and not seo_only) else None
+
+    if seo_only:
+        print("ℹ️  SEO-only mode — skipping screenshots and Figma comparison.")
 
     results = []
     total = len(pages)
@@ -226,6 +230,14 @@ async def _run_qa(job: "Job") -> str | None:
                 seo = {"url": page_url, "raw": {}, "checks": [], "pass_count": 0, "warn_count": 0, "fail_count": 1}
 
             vp_results = []
+            if seo_only:
+                # No screenshots or Figma — still append a viewport entry so the report renders
+                for vp in viewports:
+                    vp_results.append({"viewport": vp, "live_path": None,
+                                       "figma_path": None, "diff_path": None, "similarity": None})
+                results.append({"url": page_url, "path": path, "seo": seo, "viewports": vp_results})
+                continue
+
             for vp in viewports:
                 print(f"   📸 Screenshot: {vp['name']} ({vp['width']}px)...")
                 live_path = None
@@ -353,6 +365,7 @@ def api_run():
         "viewports":      viewports,
         "diff_threshold": int(data.get("diff_threshold", 10)),
         "timeout_ms":     int(data.get("timeout_ms", 15000)),
+        "seo_only":       bool(data.get("seo_only", False)),
         "output_dir":     REPORTS_DIR,
     }
 

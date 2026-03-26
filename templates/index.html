@@ -1027,7 +1027,11 @@ function addMappingRow(path = '', frames = {}) {
 
   row.innerHTML = `
     <div class="mapping-path-row">
-      <input type="text" class="map-path" value="${escHtml(path)}" placeholder="/framer-page-path">
+      <div style="display:flex;flex-direction:column;gap:4px;flex:1;min-width:0">
+        <input type="text" class="map-path" value="${escHtml(path)}" placeholder="/framer-page-path"
+               oninput="autoExtractPath(this)">
+        <span class="extracted-hint map-path-hint"></span>
+      </div>
       <button class="del-btn" onclick="this.closest('.mapping-row').remove()" title="Remove">×</button>
     </div>
     <div class="mapping-vp-fields">${vpFields}</div>`;
@@ -1054,6 +1058,27 @@ function getMappings() {
 // Returns only rows with both path AND at least one node ID (for sending to backend)
 function getMappingsForJob() {
   return getMappings().filter(r => r.path && Object.keys(r.frames).length > 0);
+}
+
+// ── Page path auto-extraction from full URL ───────────────────────────────────
+function autoExtractPath(input) {
+  const val = input.value.trim();
+  const hint = input.closest('.mapping-path-row').querySelector('.map-path-hint');
+  // Only act if it looks like a full URL (has a scheme or starts with www)
+  try {
+    const url = new URL(val.startsWith('http') ? val : 'https://' + val);
+    if (!val.startsWith('http')) return; // only auto-extract proper URLs
+    const extracted = url.pathname.replace(/\/+$/, '') || '/';
+    if (extracted !== val) {
+      input.value = extracted;
+      hint.textContent = '';
+      hint.innerHTML = `Extracted path: <code>${escHtml(extracted)}</code>`;
+      hint.classList.add('visible');
+      setTimeout(() => hint.classList.remove('visible'), 4000);
+    }
+  } catch (e) {
+    hint.classList.remove('visible');
+  }
 }
 
 // ── Figma File ID auto-extraction ─────────────────────────────────────────────

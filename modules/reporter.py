@@ -306,25 +306,77 @@ def _render_html(*, site_url, date_str, total_pages, total_pass, total_warn,
 
   /* ── Site-level checks grid ── */
   .site-checks-grid {{
-    display: flex;
-    flex-wrap: wrap;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
     gap: 12px;
   }}
   .site-check-card {{
     background: var(--surface);
     border: 1px solid var(--border);
     border-radius: var(--radius);
-    padding: 16px 20px;
-    min-width: 160px;
-    flex: 1;
-    cursor: help;
+    padding: 16px 18px;
   }}
-  .site-check-card.pass {{ border-left: 3px solid var(--pass); }}
-  .site-check-card.warn {{ border-left: 3px solid var(--warn); }}
-  .site-check-card.fail {{ border-left: 3px solid var(--fail); }}
-  .site-check-icon {{ font-size: 20px; margin-bottom: 6px; }}
-  .site-check-name {{ font-weight: 600; font-size: 13px; margin-bottom: 4px; }}
-  .site-check-detail {{ color: var(--muted); font-size: 12px; }}
+  .site-check-card.og-image-card {{
+    grid-column: span 2;
+  }}
+  .site-check-header {{
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    margin-bottom: 5px;
+  }}
+  .site-check-icon {{ font-size: 15px; flex-shrink: 0; }}
+  .site-check-name {{ font-weight: 600; font-size: 13px; }}
+  .site-check-card.pass .site-check-name {{ color: var(--pass); }}
+  .site-check-card.warn .site-check-name {{ color: var(--warn); }}
+  .site-check-card.fail .site-check-name {{ color: var(--fail); }}
+  .site-check-detail {{ color: var(--muted); font-size: 12px; line-height: 1.5; }}
+  .site-check-value {{
+    margin-top: 7px;
+    font-size: 11px;
+    color: var(--muted);
+    word-break: break-all;
+    line-height: 1.5;
+  }}
+  /* Favicon swatch */
+  .favicon-preview {{
+    display: flex;
+    gap: 8px;
+    margin-top: 10px;
+  }}
+  .favicon-bg {{
+    width: 52px; height: 52px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    flex-shrink: 0;
+  }}
+  .favicon-bg-white {{ background: #ffffff; }}
+  .favicon-bg-black {{ background: #111111; }}
+  .favicon-bg img {{ width: 32px; height: 32px; object-fit: contain; }}
+  /* OG image preview */
+  .og-image-preview {{
+    margin-top: 10px;
+    border-radius: 8px;
+    overflow: hidden;
+    border: 1px solid var(--border);
+    max-width: 600px;
+  }}
+  .og-image-preview img {{
+    width: 100%;
+    display: block;
+    max-height: 315px;
+    object-fit: cover;
+  }}
+  /* Character over-limit highlight */
+  .char-over {{
+    color: var(--fail);
+    background: rgba(255,59,48,.18);
+    border-radius: 2px;
+    padding: 0 1px;
+  }}
 
   /* ── Footer ── */
   .footer {{
@@ -566,7 +618,7 @@ def _render_vp_panel(vp_result: dict, idx: int, group_id: str, safe_id: str, act
 
 def _render_site_seo_section(site_seo: dict) -> str:
     """Renders a card-style section for site-level SEO checks (lang, favicon, OG, Twitter)."""
-    checks = site_seo.get("checks", [])
+    checks   = site_seo.get("checks", [])
     icon_map = {"pass": "✅", "warn": "⚠️", "fail": "❌"}
 
     cards = ""
@@ -575,12 +627,32 @@ def _render_site_seo_section(site_seo: dict) -> str:
         icon   = icon_map.get(status, "")
         detail = c["detail"] or ""
         value  = c["value"] or ""
-        tip    = (detail + (" — " + value[:80] if value else "")).replace('"', "&quot;")
+        name   = c["name"]
+
+        # Extra content per check type
+        extra = ""
+        if name == "Favicon" and value:
+            extra = f'''<div class="favicon-preview">
+              <div class="favicon-bg favicon-bg-white"><img src="{value}" alt="favicon on white bg"></div>
+              <div class="favicon-bg favicon-bg-black"><img src="{value}" alt="favicon on black bg"></div>
+            </div>'''
+        elif name == "OG Image (Social Preview)" and value:
+            extra = f'<div class="og-image-preview"><img src="{value}" alt="OG / Social Preview image" loading="lazy"></div>'
+        elif value:
+            truncated = (value[:100] + "…") if len(value) > 100 else value
+            extra = f'<div class="site-check-value">{truncated}</div>'
+
+        # OG image card spans 2 columns for the wider preview
+        card_class = "site-check-card og-image-card" if name == "OG Image (Social Preview)" else "site-check-card"
+
         cards += f'''
-    <div class="site-check-card {status}" title="{tip}">
-      <div class="site-check-icon">{icon}</div>
-      <div class="site-check-name">{c["name"]}</div>
+    <div class="{card_class} {status}">
+      <div class="site-check-header">
+        <span class="site-check-icon">{icon}</span>
+        <span class="site-check-name">{name}</span>
+      </div>
       <div class="site-check-detail">{detail}</div>
+      {extra}
     </div>'''
 
     return f'''
@@ -592,6 +664,24 @@ def _render_site_seo_section(site_seo: dict) -> str:
     <div class="site-checks-grid">{cards}
     </div>
   </div>'''
+
+
+# ── Character highlight helper ────────────────────────────────────────────────
+
+def _esc(s: str) -> str:
+    """Minimal HTML escape."""
+    return s.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+
+
+def _render_char_highlighted(text: str, max_chars: int) -> str:
+    """Returns HTML where characters beyond max_chars are wrapped in a red highlight span."""
+    if not text:
+        return ""
+    if len(text) <= max_chars:
+        return _esc(text)
+    ok   = _esc(text[:max_chars])
+    over = _esc(text[max_chars:])
+    return f'{ok}<span class="char-over">{over}</span>'
 
 
 # ── SEO table row ─────────────────────────────────────────────────────────────
@@ -607,8 +697,23 @@ def _render_seo_row(result: dict) -> str:
         detail = check["detail"] or ""
         value  = check["value"] or ""
         icon   = {"pass": "✅", "warn": "⚠️", "fail": "❌"}.get(status, "")
-        tip    = (detail + (" — " + value[:80] if value else "")).replace('"', "&quot;")
-        cells += f'<td><span class="badge {status}" title="{tip}">{icon}</span></td>\n'
+        name   = check["name"]
+
+        if name == "Meta Title":
+            highlighted = _render_char_highlighted(value, 60) if value else f'<span style="color:var(--fail)">Missing</span>'
+            cells += f'''<td style="white-space:normal;min-width:180px;max-width:280px">
+              <div class="badge {status}" style="margin-bottom:5px">{icon} {detail}</div>
+              <div style="font-size:12px;line-height:1.5">{highlighted}</div>
+            </td>\n'''
+        elif name == "Meta Description":
+            highlighted = _render_char_highlighted(value, 160) if value else f'<span style="color:var(--fail)">Missing</span>'
+            cells += f'''<td style="white-space:normal;min-width:200px;max-width:380px">
+              <div class="badge {status}" style="margin-bottom:5px">{icon} {detail}</div>
+              <div style="font-size:12px;line-height:1.5">{highlighted}</div>
+            </td>\n'''
+        else:
+            tip = (detail + (" — " + value[:80] if value else "")).replace('"', "&quot;")
+            cells += f'<td><span class="badge {status}" title="{tip}">{icon}</span></td>\n'
 
     return f"""<tr>
   <td class="page-url"><a href="{url}" target="_blank">{path}</a></td>

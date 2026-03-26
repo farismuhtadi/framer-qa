@@ -92,9 +92,9 @@ def _score_site_checks(raw: dict, favicon_ok, og_image_ok) -> list[dict]:
     # Language
     lang = raw.get("lang")
     if not lang:
-        checks.append(_check("Language (html[lang])", "fail", "Missing", None))
+        checks.append(_check("Site Language", "fail", "Missing html[lang] attribute", None))
     else:
-        checks.append(_check("Language (html[lang])", "pass", lang, lang))
+        checks.append(_check("Site Language", "pass", lang, lang))
 
     # Favicon
     favicon_href = raw.get("favicon_href")

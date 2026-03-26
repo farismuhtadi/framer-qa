@@ -91,7 +91,7 @@ def _render_html(*, site_url, date_str, total_pages, total_pass, total_warn,
 <style>
   :root {{
     --bg:       #f0f2f5;
-    --surface:  #ffffff;
+    --surface:  #fafaf8;
     --border:   #e5e7eb;
     --text:     #111827;
     --muted:    #6b7280;

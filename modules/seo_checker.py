@@ -107,37 +107,27 @@ def _score_site_checks(raw: dict, favicon_ok, og_image_ok) -> list[dict]:
     else:
         checks.append(_check("Favicon", "warn", "Present but could not verify", favicon_href))
 
-    # OG Title
-    og_title = raw.get("og_title")
-    if not og_title:
-        checks.append(_check("OG Title", "warn", "Missing — social shares won't have a title", None))
-    else:
-        checks.append(_check("OG Title", "pass", f"{len(og_title)} chars", og_title))
-
-    # OG Description
-    og_desc = raw.get("og_description")
-    if not og_desc:
-        checks.append(_check("OG Description", "warn", "Missing — social shares won't have a description", None))
-    else:
-        checks.append(_check("OG Description", "pass", f"{len(og_desc)} chars", og_desc))
-
-    # OG Image (Social Preview)
+    # Social Preview image (og:image — also used by Twitter/X as fallback)
+    # Note: In Framer, og:title and og:description come from the same fields as
+    # meta title/description, so they are checked per-page in check_seo() instead.
     og_image = raw.get("og_image")
     if not og_image:
-        checks.append(_check("OG Image (Social Preview)", "fail", "Missing — no image on social shares", None))
+        checks.append(_check("Social Preview Image", "fail", "Missing — no image on social shares", None))
     elif og_image_ok is False:
-        checks.append(_check("OG Image (Social Preview)", "fail", f"Not reachable: {og_image}", og_image))
+        checks.append(_check("Social Preview Image", "fail", f"Image URL not reachable", og_image))
     elif og_image_ok is True:
-        checks.append(_check("OG Image (Social Preview)", "pass", "Present and reachable", og_image))
+        checks.append(_check("Social Preview Image", "pass", "Present and reachable", og_image))
     else:
-        checks.append(_check("OG Image (Social Preview)", "warn", "Present but could not verify", og_image))
+        checks.append(_check("Social Preview Image", "warn", "Present but could not verify", og_image))
 
-    # Twitter Card
+    # Twitter Card type
+    # In Framer, twitter:image is not separately set — it falls back to og:image above.
+    # This check only verifies the card *type* is declared.
     twitter_card = raw.get("twitter_card")
     if not twitter_card:
-        checks.append(_check("Twitter Card", "warn", "Missing (optional — falls back to OG)", None))
+        checks.append(_check("Twitter Card Type", "warn", "Not set — Twitter/X falls back to og:image", None))
     else:
-        checks.append(_check("Twitter Card", "pass", twitter_card, twitter_card))
+        checks.append(_check("Twitter Card Type", "pass", twitter_card, twitter_card))
 
     return checks
 

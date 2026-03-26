@@ -636,14 +636,14 @@ def _render_site_seo_section(site_seo: dict) -> str:
               <div class="favicon-bg favicon-bg-white"><img src="{value}" alt="favicon on white bg"></div>
               <div class="favicon-bg favicon-bg-black"><img src="{value}" alt="favicon on black bg"></div>
             </div>'''
-        elif name == "OG Image (Social Preview)" and value:
+        elif name == "Social Preview Image" and value:
             extra = f'<div class="og-image-preview"><img src="{value}" alt="OG / Social Preview image" loading="lazy"></div>'
         elif value:
             truncated = (value[:100] + "…") if len(value) > 100 else value
             extra = f'<div class="site-check-value">{truncated}</div>'
 
-        # OG image card spans 2 columns for the wider preview
-        card_class = "site-check-card og-image-card" if name == "OG Image (Social Preview)" else "site-check-card"
+        # Social Preview image card spans 2 columns for the wider image
+        card_class = "site-check-card og-image-card" if name == "Social Preview Image" else "site-check-card"
 
         cards += f'''
     <div class="{card_class} {status}">
@@ -659,7 +659,7 @@ def _render_site_seo_section(site_seo: dict) -> str:
   <div class="section">
     <div class="section-title">🌐 Site-level Checks</div>
     <p style="color:var(--muted);font-size:13px;margin-bottom:16px">
-      Checked once for the whole site — language, favicon, and social preview (OG tags).
+      Checked once for the whole site. In Framer, title &amp; description come from the same field as the page meta — those are in the per-page table below.
     </p>
     <div class="site-checks-grid">{cards}
     </div>

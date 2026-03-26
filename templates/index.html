@@ -971,18 +971,20 @@ function addViewportRow(vp = {}, isNew = false) {
   });
   // Store initial name so rename tracking works
   const nameInput = row.querySelector('.vp-name');
-  nameInput.dataset.prev = vp.name || '';
+  const initialName = vp.name || '';
+  nameInput.dataset.prev = initialName;
 
   document.getElementById('viewport-rows').appendChild(row);
 
-  // If this is a brand-new viewport (not loaded from init/project), add a frame field to every existing mapping
-  if (isNew && vp.name) {
+  // If this is a brand-new viewport (not loaded from init/project), add a frame field to every existing mapping.
+  // We add immediately even if the name is blank — the rename handler will update labels when the user types one.
+  if (isNew) {
     document.querySelectorAll('.mapping-vp-fields').forEach(vpFields => {
       const fr = document.createElement('div');
       fr.className = 'vp-frame-row';
       fr.innerHTML = `
-        <span class="vp-frame-label">${escHtml(vp.name)}</span>
-        <input type="text" class="map-node-id" data-vp="${escHtml(vp.name)}"
+        <span class="vp-frame-label">${escHtml(initialName)}</span>
+        <input type="text" class="map-node-id" data-vp="${escHtml(initialName)}"
                placeholder="Node ID or Figma link" autocomplete="off" spellcheck="false"
                oninput="autoExtractNodeId(this)">`;
       vpFields.appendChild(fr);

@@ -1015,7 +1015,7 @@ function addMappingRow(path = '', frames = {}) {
       <span class="vp-frame-label">${escHtml(vp.name)}</span>
       <input type="text" class="map-node-id" data-vp="${escHtml(vp.name)}"
              value="${escHtml(frames[vp.name] || '')}"
-             placeholder="node_id or paste frame link"
+             placeholder="Node ID or Figma link"
              spellcheck="false"
              oninput="autoExtractNodeId(this)">
     </div>`).join('');

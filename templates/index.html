@@ -871,6 +871,9 @@ document.addEventListener('click', e => {
 });
 
 // ── Defaults ──────────────────────────────────────────────────────────────────
+// VP_HEIGHTS must be declared BEFORE init() runs (const is not hoisted)
+const VP_HEIGHTS = { Desktop: 900, Tablet: 1024, Mobile: 812 };
+
 const DEFAULT_VIEWPORTS = [
   { name: 'Desktop', width: 1440, height: 900  },
   { name: 'Tablet',  width: 768,  height: 1024 },
@@ -908,9 +911,6 @@ function addViewportRow(vp = {}) {
     <button class="del-btn" onclick="this.closest('.viewport-row').remove()" title="Remove">×</button>`;
   document.getElementById('viewport-rows').appendChild(row);
 }
-
-// Default heights per breakpoint name
-const VP_HEIGHTS = { Desktop: 900, Tablet: 1024, Mobile: 812 };
 
 function getViewports() {
   return Array.from(document.querySelectorAll('.viewport-row')).map(row => {

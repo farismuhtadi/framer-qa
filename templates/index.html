@@ -434,7 +434,8 @@ input[type=password] { font-family: monospace; letter-spacing: .05em; }
   border-radius: 50%; animation: spin .7s linear infinite; flex-shrink: 0;
 }
 @keyframes spin { to { transform: rotate(360deg); } }
-.progress-bar-wrap { height: 3px; background: var(--border); flex-shrink: 0; }
+.progress-bar-wrap { height: 3px; background: var(--border); flex-shrink: 0; display: none; }
+.progress-bar-wrap.visible { display: block; }
 .progress-bar-fill {
   height: 100%; background: var(--accent);
   transition: width .5s ease; border-radius: 0 2px 2px 0;
@@ -1235,6 +1236,7 @@ function resetConsole() {
   document.getElementById('run-spinner').style.display = '';
   document.getElementById('progress-bar').style.width = '2%';
   document.getElementById('run-progress-label').textContent = '0%';
+  document.querySelector('.progress-bar-wrap').classList.add('visible');
 }
 
 function appendLog(msg, cls = '') {

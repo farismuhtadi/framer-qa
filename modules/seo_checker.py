@@ -140,15 +140,6 @@ def _score_site_checks(raw: dict, favicon_ok, og_image_ok) -> list[dict]:
     else:
         checks.append(_check("Social Preview Image", "warn", "Present but could not verify", og_image))
 
-    # Twitter Card type
-    # In Framer, twitter:image is not separately set — it falls back to og:image above.
-    # This check only verifies the card *type* is declared.
-    twitter_card = raw.get("twitter_card")
-    if not twitter_card:
-        checks.append(_check("Twitter Card Type", "warn", "Not set — Twitter/X falls back to og:image", None))
-    else:
-        checks.append(_check("Twitter Card Type", "pass", twitter_card, twitter_card))
-
     return checks
 
 

@@ -94,7 +94,7 @@ def _render_html(*, site_url, date_str, total_pages, total_pass, total_warn,
     --surface:  #fafaf8;
     --border:   #e5e7eb;
     --text:     #111827;
-    --muted:    #6b7280;
+    --muted:    #4b5563;
     --subtle:   #f9fafb;
     --pass:     #10b981;
     --warn:     #f59e0b;

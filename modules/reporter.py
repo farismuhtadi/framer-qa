@@ -76,7 +76,7 @@ def _render_html(*, site_url, date_str, total_pages, total_pass, total_warn,
     sim_html = ""
     if avg_similarity is not None:
         color = similarity_color(avg_similarity)
-        sim_html = f'<div class="stat-card"><div class="stat-value {color}">{avg_similarity:.1f}%</div><div class="stat-label">Avg Visual Match</div></div>'
+        sim_html = f'<div class="stat-card card-sim"><div class="stat-value neutral">{avg_similarity:.1f}%</div><div class="stat-label">Avg Visual Match</div></div>'
 
     pass_pct = round(total_pass / max(total_pass + total_fail, 1) * 100)
 
@@ -90,20 +90,27 @@ def _render_html(*, site_url, date_str, total_pages, total_pass, total_warn,
 <title>Framer QA Report — {site_url}</title>
 <style>
   :root {{
-    --bg:       #0f1117;
-    --surface:  #1a1d27;
-    --border:   #2a2d3a;
-    --text:     #e4e6f0;
-    --muted:    #7c7f96;
-    --pass:     #34c759;
-    --warn:     #ff9f0a;
-    --fail:     #ff3b30;
-    --accent:   #5e6ad2;
+    --bg:       #f0f2f5;
+    --surface:  #ffffff;
+    --border:   #e5e7eb;
+    --text:     #111827;
+    --muted:    #6b7280;
+    --subtle:   #f9fafb;
+    --pass:     #10b981;
+    --warn:     #f59e0b;
+    --fail:     #ef4444;
+    --accent:   #6366f1;
+    --accent-light: #eef2ff;
+    --pass-light:   #ecfdf5;
+    --warn-light:   #fffbeb;
+    --fail-light:   #fef2f2;
+    --shadow-sm: 0 1px 3px rgba(0,0,0,.06), 0 1px 2px rgba(0,0,0,.04);
+    --shadow:    0 4px 12px rgba(0,0,0,.06), 0 1px 3px rgba(0,0,0,.04);
     --radius:   12px;
   }}
   * {{ box-sizing: border-box; margin: 0; padding: 0; }}
   body {{
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    font-family: -apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', sans-serif;
     background: var(--bg);
     color: var(--text);
     font-size: 14px;
@@ -116,111 +123,182 @@ def _render_html(*, site_url, date_str, total_pages, total_pass, total_warn,
   .header {{
     background: var(--surface);
     border-bottom: 1px solid var(--border);
-    padding: 28px 40px;
+    padding: 20px 40px;
     display: flex;
     align-items: center;
     justify-content: space-between;
+    box-shadow: var(--shadow-sm);
   }}
-  .header-left h1 {{ font-size: 20px; font-weight: 700; }}
-  .header-left .subtitle {{ color: var(--muted); font-size: 13px; margin-top: 4px; }}
-  .header-right {{ color: var(--muted); font-size: 13px; text-align: right; }}
+  .header-brand {{
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }}
+  .header-logo {{
+    width: 36px; height: 36px;
+    background: var(--accent);
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+    flex-shrink: 0;
+  }}
+  .header-left h1 {{ font-size: 17px; font-weight: 700; color: var(--text); letter-spacing: -0.3px; }}
+  .header-left .subtitle {{ color: var(--muted); font-size: 12px; margin-top: 1px; }}
+  .header-right {{ color: var(--muted); font-size: 12px; text-align: right; line-height: 1.7; }}
+  .header-right strong {{ color: var(--text); font-weight: 600; }}
 
-  .container {{ max-width: 1400px; margin: 0 auto; padding: 32px 40px; }}
+  .container {{ max-width: 1400px; margin: 0 auto; padding: 28px 40px; }}
 
   /* ── Summary Cards ── */
   .summary {{
-    display: flex;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
     gap: 16px;
-    margin-bottom: 40px;
-    flex-wrap: wrap;
+    margin-bottom: 32px;
   }}
   .stat-card {{
     background: var(--surface);
     border: 1px solid var(--border);
     border-radius: var(--radius);
-    padding: 20px 28px;
-    flex: 1;
-    min-width: 140px;
-    text-align: center;
+    padding: 20px 24px;
+    box-shadow: var(--shadow-sm);
+    position: relative;
+    overflow: hidden;
   }}
+  .stat-card::before {{
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 3px;
+    border-radius: var(--radius) var(--radius) 0 0;
+    background: var(--accent);
+  }}
+  .stat-card.card-pass::before {{ background: var(--pass); }}
+  .stat-card.card-warn::before {{ background: var(--warn); }}
+  .stat-card.card-fail::before {{ background: var(--fail); }}
+  .stat-card.card-sim::before  {{ background: var(--accent); }}
   .stat-value {{
-    font-size: 32px;
-    font-weight: 700;
+    font-size: 30px;
+    font-weight: 800;
     line-height: 1;
     margin-bottom: 6px;
+    letter-spacing: -1px;
   }}
-  .stat-label {{ color: var(--muted); font-size: 12px; text-transform: uppercase; letter-spacing: .5px; }}
-  .pass   {{ color: var(--pass); }}
-  .warn   {{ color: var(--warn); }}
-  .fail   {{ color: var(--fail); }}
-  .neutral {{ color: var(--text); }}
+  .stat-label {{
+    color: var(--muted);
+    font-size: 11.5px;
+    text-transform: uppercase;
+    letter-spacing: .6px;
+    font-weight: 600;
+  }}
+  .pass    {{ color: var(--pass); }}
+  .warn    {{ color: var(--warn); }}
+  .fail    {{ color: var(--fail); }}
+  .neutral {{ color: var(--accent); }}
 
   /* ── Section ── */
-  .section {{ margin-bottom: 48px; }}
+  .section {{ margin-bottom: 40px; }}
   .section-title {{
-    font-size: 18px;
-    font-weight: 600;
-    margin-bottom: 20px;
-    padding-bottom: 12px;
-    border-bottom: 1px solid var(--border);
+    font-size: 15px;
+    font-weight: 700;
+    margin-bottom: 16px;
+    color: var(--text);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    letter-spacing: -0.2px;
+  }}
+  .section-title .section-icon {{
+    width: 28px; height: 28px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+    background: var(--accent-light);
+    flex-shrink: 0;
+  }}
+  .section-subtitle {{
+    color: var(--muted);
+    font-size: 12.5px;
+    margin-top: -10px;
+    margin-bottom: 16px;
+    padding-left: 36px;
   }}
 
   /* ── SEO Table ── */
-  .table-wrap {{ overflow-x: auto; }}
+  .table-wrap {{
+    overflow-x: auto;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow-sm);
+  }}
   table {{
     width: 100%;
     border-collapse: collapse;
     font-size: 13px;
   }}
   th, td {{
-    padding: 10px 14px;
+    padding: 11px 16px;
     border-bottom: 1px solid var(--border);
     white-space: nowrap;
   }}
+  tbody tr:last-child td {{ border-bottom: none; }}
   th {{
-    background: var(--surface);
+    background: var(--subtle);
     color: var(--muted);
     font-weight: 600;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: .5px;
     text-align: left;
     position: sticky;
     top: 0;
   }}
-  tr:hover td {{ background: rgba(255,255,255,0.03); }}
+  tr:hover td {{ background: #fafbff; }}
   .page-url {{ color: var(--accent); font-weight: 500; }}
 
   .badge {{
     display: inline-flex;
     align-items: center;
     gap: 4px;
-    padding: 2px 8px;
-    border-radius: 6px;
-    font-size: 12px;
+    padding: 3px 9px;
+    border-radius: 20px;
+    font-size: 11.5px;
     font-weight: 600;
   }}
-  .badge.pass {{ background: rgba(52,199,89,.15); color: var(--pass); }}
-  .badge.warn {{ background: rgba(255,159,10,.15); color: var(--warn); }}
-  .badge.fail {{ background: rgba(255,59,48,.15); color: var(--fail); }}
+  .badge.pass {{ background: var(--pass-light); color: #059669; }}
+  .badge.warn {{ background: var(--warn-light); color: #d97706; }}
+  .badge.fail {{ background: var(--fail-light); color: #dc2626; }}
 
   /* ── Page Cards (Visual Comparison) ── */
   .page-card {{
     background: var(--surface);
     border: 1px solid var(--border);
     border-radius: var(--radius);
-    margin-bottom: 24px;
+    margin-bottom: 16px;
     overflow: hidden;
+    box-shadow: var(--shadow-sm);
+    transition: box-shadow .15s;
   }}
+  .page-card:hover {{ box-shadow: var(--shadow); }}
   .page-card-header {{
-    padding: 16px 20px;
-    border-bottom: 1px solid var(--border);
+    padding: 14px 20px;
+    border-bottom: 1px solid transparent;
     display: flex;
     align-items: center;
     justify-content: space-between;
     cursor: pointer;
     user-select: none;
+    transition: background .1s;
   }}
-  .page-card-header:hover {{ background: rgba(255,255,255,0.03); }}
-  .page-card-header h3 {{ font-size: 15px; font-weight: 600; }}
-  .page-card-header .url {{ color: var(--muted); font-size: 12px; margin-top: 2px; }}
+  .page-card-header:hover {{ background: var(--subtle); }}
+  .page-card.open .page-card-header {{ border-bottom-color: var(--border); }}
+  .page-card-header h3 {{ font-size: 14px; font-weight: 600; color: var(--text); }}
+  .page-card-header .url {{ color: var(--muted); font-size: 11px; margin-top: 1px; }}
   .chevron {{ color: var(--muted); transition: transform .2s; }}
   .page-card.open .chevron {{ transform: rotate(180deg); }}
   .page-card-body {{ display: none; padding: 20px; }}
@@ -229,22 +307,26 @@ def _render_html(*, site_url, date_str, total_pages, total_pass, total_warn,
   /* ── Viewport Tabs ── */
   .vp-tabs {{
     display: flex;
-    gap: 8px;
+    gap: 6px;
     margin-bottom: 16px;
+    background: var(--subtle);
+    padding: 4px;
+    border-radius: 10px;
+    width: fit-content;
   }}
   .vp-tab {{
-    padding: 6px 14px;
-    border-radius: 8px;
-    border: 1px solid var(--border);
+    padding: 5px 14px;
+    border-radius: 7px;
+    border: none;
     background: transparent;
     color: var(--muted);
     cursor: pointer;
-    font-size: 13px;
+    font-size: 12.5px;
     font-weight: 500;
     transition: all .15s;
   }}
-  .vp-tab:hover {{ border-color: var(--accent); color: var(--text); }}
-  .vp-tab.active {{ background: var(--accent); border-color: var(--accent); color: #fff; }}
+  .vp-tab:hover {{ color: var(--text); background: rgba(0,0,0,.04); }}
+  .vp-tab.active {{ background: var(--surface); color: var(--text); box-shadow: var(--shadow-sm); font-weight: 600; }}
 
   .vp-panel {{ display: none; }}
   .vp-panel.active {{ display: block; }}
@@ -266,8 +348,8 @@ def _render_html(*, site_url, date_str, total_pages, total_pass, total_warn,
     font-weight: 500;
     transition: all .15s;
   }}
-  .img-tab:hover {{ border-color: var(--text); color: var(--text); }}
-  .img-tab.active {{ background: var(--surface); border-color: var(--text); color: var(--text); }}
+  .img-tab:hover {{ border-color: var(--accent); color: var(--accent); }}
+  .img-tab.active {{ background: var(--accent-light); border-color: var(--accent); color: var(--accent); font-weight: 600; }}
 
   .img-panels {{ position: relative; }}
   .img-panel {{ display: none; }}
@@ -284,15 +366,15 @@ def _render_html(*, site_url, date_str, total_pages, total_pass, total_warn,
     display: inline-flex;
     align-items: center;
     gap: 6px;
-    padding: 4px 10px;
-    border-radius: 8px;
+    padding: 4px 12px;
+    border-radius: 20px;
     font-size: 12px;
     font-weight: 600;
     margin-bottom: 12px;
   }}
 
   .no-figma {{
-    background: rgba(124,127,150,.1);
+    background: var(--subtle);
     border: 1px dashed var(--border);
     border-radius: 8px;
     padding: 32px;
@@ -307,7 +389,7 @@ def _render_html(*, site_url, date_str, total_pages, total_pass, total_warn,
   /* ── Site-level checks grid ── */
   .site-checks-grid {{
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
     gap: 12px;
   }}
   .site-check-card {{
@@ -315,34 +397,47 @@ def _render_html(*, site_url, date_str, total_pages, total_pass, total_warn,
     border: 1px solid var(--border);
     border-radius: var(--radius);
     padding: 16px 18px;
+    box-shadow: var(--shadow-sm);
+    transition: box-shadow .15s;
   }}
+  .site-check-card:hover {{ box-shadow: var(--shadow); }}
   .site-check-card.og-image-card {{
     grid-column: span 2;
   }}
   .site-check-header {{
     display: flex;
     align-items: center;
-    gap: 7px;
-    margin-bottom: 5px;
+    gap: 8px;
+    margin-bottom: 6px;
   }}
-  .site-check-icon {{ font-size: 15px; flex-shrink: 0; }}
-  .site-check-name {{ font-weight: 600; font-size: 13px; }}
-  .site-check-card.pass .site-check-name {{ color: var(--pass); }}
-  .site-check-card.warn .site-check-name {{ color: var(--warn); }}
-  .site-check-card.fail .site-check-name {{ color: var(--fail); }}
-  .site-check-detail {{ color: var(--muted); font-size: 12px; line-height: 1.5; }}
+  .site-check-dot {{
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }}
+  .site-check-card.pass .site-check-dot {{ background: var(--pass); }}
+  .site-check-card.warn .site-check-dot {{ background: var(--warn); }}
+  .site-check-card.fail .site-check-dot {{ background: var(--fail); }}
+  .site-check-name {{ font-weight: 600; font-size: 13px; color: var(--text); }}
+  .site-check-detail {{ color: var(--muted); font-size: 12px; line-height: 1.5; padding-left: 16px; }}
   .site-check-value {{
-    margin-top: 7px;
+    margin-top: 8px;
     font-size: 11px;
     color: var(--muted);
     word-break: break-all;
     line-height: 1.5;
+    padding-left: 16px;
   }}
+  /* Status pill on card */
+  .site-check-card.pass {{ border-top: 3px solid var(--pass); }}
+  .site-check-card.warn {{ border-top: 3px solid var(--warn); }}
+  .site-check-card.fail {{ border-top: 3px solid var(--fail); }}
   /* Favicon swatch */
   .favicon-preview {{
     display: flex;
     gap: 8px;
     margin-top: 10px;
+    padding-left: 16px;
   }}
   .favicon-bg {{
     width: 52px; height: 52px;
@@ -353,7 +448,7 @@ def _render_html(*, site_url, date_str, total_pages, total_pass, total_warn,
     border: 1px solid var(--border);
     flex-shrink: 0;
   }}
-  .favicon-bg-white {{ background: #ffffff; }}
+  .favicon-bg-white {{ background: #ffffff; box-shadow: inset 0 0 0 1px #e5e7eb; }}
   .favicon-bg-black {{ background: #111111; }}
   .favicon-bg img {{ width: 32px; height: 32px; object-fit: contain; }}
   /* OG image preview */
@@ -372,8 +467,8 @@ def _render_html(*, site_url, date_str, total_pages, total_pass, total_warn,
   }}
   /* Character over-limit highlight */
   .char-over {{
-    color: var(--fail);
-    background: rgba(255,59,48,.18);
+    color: #dc2626;
+    background: #fee2e2;
     border-radius: 2px;
     padding: 0 1px;
   }}
@@ -381,23 +476,28 @@ def _render_html(*, site_url, date_str, total_pages, total_pass, total_warn,
   /* ── Footer ── */
   .footer {{
     border-top: 1px solid var(--border);
-    padding: 20px 40px;
+    padding: 18px 40px;
     color: var(--muted);
     font-size: 12px;
     text-align: center;
+    background: var(--surface);
+    margin-top: 16px;
   }}
 </style>
 </head>
 <body>
 
 <div class="header">
-  <div class="header-left">
-    <h1>🔍 Framer QA Report</h1>
-    <div class="subtitle"><a href="{site_url}" target="_blank">{site_url}</a></div>
+  <div class="header-brand">
+    <div class="header-logo">🔍</div>
+    <div class="header-left">
+      <h1>Framer QA Report</h1>
+      <div class="subtitle"><a href="{site_url}" target="_blank">{site_url}</a></div>
+    </div>
   </div>
   <div class="header-right">
-    Generated {date_str}<br>
-    {total_pages} page{"s" if total_pages != 1 else ""} checked
+    <strong>{total_pages} page{"s" if total_pages != 1 else ""} checked</strong><br>
+    {date_str}
   </div>
 </div>
 
@@ -405,19 +505,19 @@ def _render_html(*, site_url, date_str, total_pages, total_pass, total_warn,
 
   <!-- Summary -->
   <div class="summary">
-    <div class="stat-card">
+    <div class="stat-card card-neutral">
       <div class="stat-value neutral">{total_pages}</div>
       <div class="stat-label">Pages Checked</div>
     </div>
-    <div class="stat-card">
+    <div class="stat-card card-pass">
       <div class="stat-value pass">{total_pass}</div>
       <div class="stat-label">SEO Checks Passed</div>
     </div>
-    <div class="stat-card">
+    <div class="stat-card card-warn">
       <div class="stat-value warn">{total_warn}</div>
       <div class="stat-label">Warnings</div>
     </div>
-    <div class="stat-card">
+    <div class="stat-card card-fail">
       <div class="stat-value fail">{total_fail}</div>
       <div class="stat-label">Failures</div>
     </div>
@@ -428,7 +528,7 @@ def _render_html(*, site_url, date_str, total_pages, total_pass, total_warn,
 
   <!-- SEO Checks Table -->
   <div class="section">
-    <div class="section-title">📋 Page-level SEO</div>
+    <div class="section-title"><span class="section-icon">📋</span> Page-level SEO</div>
     <div class="table-wrap">
       <table>
         <thead>
@@ -446,7 +546,7 @@ def _render_html(*, site_url, date_str, total_pages, total_pass, total_warn,
 
   <!-- Visual Comparison -->
   <div class="section">
-    <div class="section-title">🎨 Visual Comparison — Live vs Figma</div>
+    <div class="section-title"><span class="section-icon">🎨</span> Visual Comparison — Live vs Figma</div>
     {pages_html}
   </div>
 
@@ -619,12 +719,10 @@ def _render_vp_panel(vp_result: dict, idx: int, group_id: str, safe_id: str, act
 def _render_site_seo_section(site_seo: dict) -> str:
     """Renders a card-style section for site-level SEO checks (lang, favicon, OG, Twitter)."""
     checks   = site_seo.get("checks", [])
-    icon_map = {"pass": "✅", "warn": "⚠️", "fail": "❌"}
 
     cards = ""
     for c in checks:
         status = c["status"]
-        icon   = icon_map.get(status, "")
         detail = c["detail"] or ""
         value  = c["value"] or ""
         name   = c["name"]
@@ -637,13 +735,13 @@ def _render_site_seo_section(site_seo: dict) -> str:
               <div class="favicon-bg favicon-bg-black"><img src="{value}" alt="favicon on black bg"></div>
             </div>'''
         elif name == "Social Preview Image" and value:
-            extra = f'<div class="og-image-preview"><img src="{value}" alt="OG / Social Preview image" loading="lazy"></div>'
+            extra = f'<div class="og-image-preview" style="margin-left:16px"><img src="{value}" alt="OG / Social Preview image" loading="lazy"></div>'
         elif name == "Meta Title" and value:
             highlighted = _render_char_highlighted(value, 60)
-            extra = f'<div class="site-check-value" style="font-size:12px;color:var(--text)">{highlighted}</div>'
+            extra = f'<div class="site-check-value" style="color:var(--text)">{highlighted}</div>'
         elif name == "Meta Description" and value:
             highlighted = _render_char_highlighted(value, 160)
-            extra = f'<div class="site-check-value" style="font-size:12px;color:var(--text)">{highlighted}</div>'
+            extra = f'<div class="site-check-value" style="color:var(--text)">{highlighted}</div>'
         elif value:
             truncated = (value[:100] + "…") if len(value) > 100 else value
             extra = f'<div class="site-check-value">{truncated}</div>'
@@ -654,7 +752,7 @@ def _render_site_seo_section(site_seo: dict) -> str:
         cards += f'''
     <div class="{card_class} {status}">
       <div class="site-check-header">
-        <span class="site-check-icon">{icon}</span>
+        <span class="site-check-dot"></span>
         <span class="site-check-name">{name}</span>
       </div>
       <div class="site-check-detail">{detail}</div>
@@ -663,9 +761,9 @@ def _render_site_seo_section(site_seo: dict) -> str:
 
     return f'''
   <div class="section">
-    <div class="section-title">🌐 Site-level Checks</div>
-    <p style="color:var(--muted);font-size:13px;margin-bottom:16px">
-      Checked once for the whole site. In Framer, title &amp; description come from the same field as the page meta — those are in the per-page table below.
+    <div class="section-title"><span class="section-icon">🌐</span> Site-level Checks</div>
+    <p class="section-subtitle">
+      Checked once for the whole site. Title &amp; description use the same field as page meta in Framer — those are in the per-page table below.
     </p>
     <div class="site-checks-grid">{cards}
     </div>

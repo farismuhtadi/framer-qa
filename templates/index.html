@@ -163,9 +163,12 @@ input[type=password] { font-family: monospace; letter-spacing: .05em; }
 .project-trigger .trigger-text.has-value { color: var(--text); }
 .project-trigger .trigger-arrow { color: var(--muted); font-size: 10px; flex-shrink: 0; }
 .clear-project-btn {
-  background: transparent; border: none; padding: 0 2px;
-  color: var(--muted); font-size: 13px; line-height: 1;
-  flex-shrink: 0; transition: color .15s;
+  position: absolute;
+  top: 50%; right: 28px;
+  transform: translateY(-50%);
+  background: transparent; border: none; padding: 2px 4px;
+  color: var(--muted); font-size: 12px; line-height: 1;
+  transition: color .15s; z-index: 1;
 }
 .clear-project-btn:hover { color: var(--fail); }
 
@@ -553,10 +556,10 @@ input[type=password] { font-family: monospace; letter-spacing: .05em; }
       <div class="project-dropdown-wrap" id="project-dropdown-wrap">
         <button class="project-trigger" id="project-trigger" onclick="toggleProjectDropdown(event)">
           <span class="trigger-text" id="trigger-text">Select a project…</span>
-          <button class="clear-project-btn" id="clear-project-btn" onclick="clearCurrentProject(event)"
-                  title="Deselect project" style="display:none">✕</button>
           <span class="trigger-arrow">▼</span>
         </button>
+        <button class="clear-project-btn" id="clear-project-btn" onclick="clearCurrentProject(event)"
+                title="Deselect project" style="display:none">✕</button>
         <div class="project-dropdown" id="project-dropdown">
           <input type="text" class="project-search" id="project-search"
                  placeholder="Search projects…" oninput="filterProjects(this.value)">

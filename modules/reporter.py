@@ -638,6 +638,12 @@ def _render_site_seo_section(site_seo: dict) -> str:
             </div>'''
         elif name == "Social Preview Image" and value:
             extra = f'<div class="og-image-preview"><img src="{value}" alt="OG / Social Preview image" loading="lazy"></div>'
+        elif name == "Meta Title" and value:
+            highlighted = _render_char_highlighted(value, 60)
+            extra = f'<div class="site-check-value" style="font-size:12px;color:var(--text)">{highlighted}</div>'
+        elif name == "Meta Description" and value:
+            highlighted = _render_char_highlighted(value, 160)
+            extra = f'<div class="site-check-value" style="font-size:12px;color:var(--text)">{highlighted}</div>'
         elif value:
             truncated = (value[:100] + "…") if len(value) > 100 else value
             extra = f'<div class="site-check-value">{truncated}</div>'

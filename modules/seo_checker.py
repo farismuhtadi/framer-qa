@@ -107,9 +107,29 @@ def _score_site_checks(raw: dict, favicon_ok, og_image_ok) -> list[dict]:
     else:
         checks.append(_check("Favicon", "warn", "Present but could not verify", favicon_href))
 
+    # Meta Title (site-level snapshot — same value as og:title in Framer)
+    title = raw.get("title")
+    if not title:
+        checks.append(_check("Meta Title", "fail", "Missing", None))
+    elif len(title) < TITLE_MIN:
+        checks.append(_check("Meta Title", "warn", f"Too short ({len(title)} chars)", title))
+    elif len(title) > TITLE_MAX:
+        checks.append(_check("Meta Title", "warn", f"Too long ({len(title)} chars, max {TITLE_MAX})", title))
+    else:
+        checks.append(_check("Meta Title", "pass", f"{len(title)} chars", title))
+
+    # Meta Description (site-level snapshot — same value as og:description in Framer)
+    desc = raw.get("meta_description")
+    if not desc:
+        checks.append(_check("Meta Description", "fail", "Missing", None))
+    elif len(desc) < DESC_MIN:
+        checks.append(_check("Meta Description", "warn", f"Too short ({len(desc)} chars, min {DESC_MIN})", desc))
+    elif len(desc) > DESC_MAX:
+        checks.append(_check("Meta Description", "warn", f"Too long ({len(desc)} chars, max {DESC_MAX})", desc))
+    else:
+        checks.append(_check("Meta Description", "pass", f"{len(desc)} chars", desc))
+
     # Social Preview image (og:image — also used by Twitter/X as fallback)
-    # Note: In Framer, og:title and og:description come from the same fields as
-    # meta title/description, so they are checked per-page in check_seo() instead.
     og_image = raw.get("og_image")
     if not og_image:
         checks.append(_check("Social Preview Image", "fail", "Missing — no image on social shares", None))

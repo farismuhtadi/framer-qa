@@ -778,14 +778,15 @@ function selectProject(name) {
   document.getElementById('seo-only').checked       = p.seo_only || false;
   document.getElementById('file-id-hint').classList.remove('visible');
 
-  // Viewports
+  // Viewports — use saved viewports or fall back to defaults if empty
   document.getElementById('viewport-rows').innerHTML = '';
-  (p.viewports || DEFAULT_VIEWPORTS).forEach(vp => addViewportRow(vp));
+  const vpsToLoad = (p.viewports && p.viewports.length) ? p.viewports : DEFAULT_VIEWPORTS;
+  vpsToLoad.forEach(vp => addViewportRow(vp));
 
   // Mappings — rebuild rows after viewports are set
   document.getElementById('mappings-table').innerHTML = '';
   if (p.page_frames && p.page_frames.length) {
-    p.page_frames.forEach(r => addMappingRow(r.path, r.frames || {}));
+    p.page_frames.forEach(r => addMappingRow(r.path || '', r.frames || {}));
   } else {
     addMappingRow();
   }
@@ -924,7 +925,8 @@ function getViewports() {
 
 // ── Page mapping rows ─────────────────────────────────────────────────────────
 function addMappingRow(path = '', frames = {}) {
-  const viewports = getViewports();
+  // Fallback to defaults if viewport rows haven't been added yet
+  const viewports = getViewports().length > 0 ? getViewports() : DEFAULT_VIEWPORTS;
   const row = document.createElement('div');
   row.className = 'mapping-row';
 
@@ -948,10 +950,10 @@ function addMappingRow(path = '', frames = {}) {
   document.getElementById('mappings-table').appendChild(row);
 }
 
+// Returns ALL mapping rows (for save/load — preserves paths even without node IDs)
 function getMappings() {
   return Array.from(document.querySelectorAll('.mapping-row'))
     .map(row => {
-      // Normalize path: strip trailing slash, default to /
       const raw = row.querySelector('.map-path').value.trim();
       const path = raw.replace(/\/+$/, '') || '/';
       const frames = {};
@@ -961,8 +963,12 @@ function getMappings() {
         if (vp && val) frames[vp] = val;
       });
       return { path, frames };
-    })
-    .filter(r => r.path && Object.keys(r.frames).length > 0);
+    });
+}
+
+// Returns only rows with both path AND at least one node ID (for sending to backend)
+function getMappingsForJob() {
+  return getMappings().filter(r => r.path && Object.keys(r.frames).length > 0);
 }
 
 // ── Figma File ID auto-extraction ─────────────────────────────────────────────
@@ -1063,7 +1069,7 @@ async function startJob() {
     site_url:       siteUrl,
     figma_token:    document.getElementById('figma-token').value.trim(),
     figma_file_id:  document.getElementById('figma-file-id').value.trim(),
-    page_frames:    getMappings(),
+    page_frames:    getMappingsForJob(),
     viewports:      getViewports(),
     diff_threshold: parseInt(document.getElementById('diff-threshold').value) || 10,
     timeout_ms:     parseInt(document.getElementById('timeout-ms').value) || 15000,

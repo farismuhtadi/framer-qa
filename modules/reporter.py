@@ -167,21 +167,7 @@ def _render_html(*, site_url, date_str, total_pages, total_pass, total_warn,
     border-radius: var(--radius);
     padding: 20px 24px;
     box-shadow: var(--shadow-sm);
-    position: relative;
-    overflow: hidden;
   }}
-  .stat-card::before {{
-    content: '';
-    position: absolute;
-    top: 0; left: 0; right: 0;
-    height: 3px;
-    border-radius: var(--radius) var(--radius) 0 0;
-    background: var(--accent);
-  }}
-  .stat-card.card-pass::before {{ background: var(--pass); }}
-  .stat-card.card-warn::before {{ background: var(--warn); }}
-  .stat-card.card-fail::before {{ background: var(--fail); }}
-  .stat-card.card-sim::before  {{ background: var(--accent); }}
   .stat-value {{
     font-size: 30px;
     font-weight: 800;
@@ -325,11 +311,11 @@ def _render_html(*, site_url, date_str, total_pages, total_pass, total_warn,
     color: var(--muted);
     cursor: pointer;
     font-size: 12.5px;
-    font-weight: 500;
-    transition: all .15s;
+    font-weight: 600;
+    transition: background .15s, color .15s, box-shadow .15s;
   }}
   .vp-tab:hover {{ color: var(--text); background: rgba(0,0,0,.04); }}
-  .vp-tab.active {{ background: var(--surface); color: var(--text); box-shadow: var(--shadow-sm); font-weight: 600; }}
+  .vp-tab.active {{ background: var(--surface); color: var(--text); box-shadow: var(--shadow-sm); }}
 
   .vp-panel {{ display: none; }}
   .vp-panel.active {{ display: block; }}
@@ -392,7 +378,7 @@ def _render_html(*, site_url, date_str, total_pages, total_pass, total_warn,
   /* ── Site-level checks grid ── */
   .site-checks-grid {{
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
     gap: 12px;
   }}
   .site-check-card {{
@@ -402,16 +388,18 @@ def _render_html(*, site_url, date_str, total_pages, total_pass, total_warn,
     padding: 16px 18px;
     box-shadow: var(--shadow-sm);
     transition: box-shadow .15s;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
   }}
   .site-check-card:hover {{ box-shadow: var(--shadow); }}
   .site-check-card.og-image-card {{
-    grid-column: span 2;
+    grid-column: 1 / -1;
   }}
   .site-check-header {{
     display: flex;
     align-items: center;
     gap: 8px;
-    margin-bottom: 6px;
   }}
   .site-check-dot {{
     width: 8px; height: 8px;
@@ -421,20 +409,21 @@ def _render_html(*, site_url, date_str, total_pages, total_pass, total_warn,
   .site-check-card.pass .site-check-dot {{ background: var(--pass); }}
   .site-check-card.warn .site-check-dot {{ background: var(--warn); }}
   .site-check-card.fail .site-check-dot {{ background: var(--fail); }}
-  .site-check-name {{ font-weight: 600; font-size: 13px; color: var(--text); }}
-  .site-check-detail {{ color: var(--muted); font-size: 12px; line-height: 1.5; padding-left: 16px; }}
+  .site-check-name {{ font-weight: 700; font-size: 13px; color: var(--text); }}
+  .site-check-detail {{
+    color: var(--muted);
+    font-size: 12.5px;
+    line-height: 1.55;
+    padding-left: 16px;
+  }}
   .site-check-value {{
-    margin-top: 8px;
-    font-size: 11px;
+    margin-top: 4px;
+    font-size: 11.5px;
     color: var(--muted);
     word-break: break-all;
     line-height: 1.5;
     padding-left: 16px;
   }}
-  /* Status pill on card */
-  .site-check-card.pass {{ border-top: 3px solid var(--pass); }}
-  .site-check-card.warn {{ border-top: 3px solid var(--warn); }}
-  .site-check-card.fail {{ border-top: 3px solid var(--fail); }}
   /* Favicon swatch */
   .favicon-preview {{
     display: flex;
@@ -573,9 +562,9 @@ def _render_html(*, site_url, date_str, total_pages, total_pass, total_warn,
       <strong>{total_pages} page{"s" if total_pages != 1 else ""} checked</strong><br>
       {date_str}
     </div>
-    <button class="print-btn" onclick="window.print()">
-      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
-      Export PDF
+    <button class="print-btn" onclick="savePDF()">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+      Save PDF
     </button>
   </div>
 </div>
@@ -636,6 +625,13 @@ def _render_html(*, site_url, date_str, total_pages, total_pass, total_warn,
 </div>
 
 <script>
+  // Save as PDF
+  function savePDF() {{
+    // Expand all cards before printing so nothing is clipped
+    document.querySelectorAll('.page-card').forEach(c => c.classList.add('open'));
+    window.print();
+  }}
+
   // Page card accordion
   document.querySelectorAll('.page-card-header').forEach(header => {{
     header.addEventListener('click', () => {{

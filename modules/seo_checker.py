@@ -36,12 +36,6 @@ _EXTRACT_JS = """() => {
         document.querySelector('link[rel="shortcut icon"]') ||
         document.querySelector('link[rel="apple-touch-icon"]');
     const h1Els = Array.from(document.querySelectorAll('h1'));
-    const formEls = Array.from(document.querySelectorAll('form'));
-    const forms = formEls.map(f => ({
-        action: f.getAttribute('action'),
-        method: (f.getAttribute('method') || 'get').toLowerCase(),
-        inputCount: f.querySelectorAll('input:not([type="hidden"]), textarea, select').length,
-    }));
     const origin = location.origin;
     const internalLinks = Array.from(document.querySelectorAll('a[href]'))
         .map(a => {
@@ -70,7 +64,6 @@ _EXTRACT_JS = """() => {
         robots:              get('meta[name="robots"]'),
         h1_texts:            h1Els.map(el => el.innerText.trim()).filter(Boolean),
         internal_links:      [...new Set(internalLinks)],
-        forms:               forms,
     };
 }"""
 
@@ -245,22 +238,6 @@ def _score_page_checks(raw: dict, page_url: str) -> list[dict]:
             checks.append(_check("Broken Links", "pass", f"{len(internal_links)} internal link{'s' if len(internal_links) != 1 else ''} checked", None))
     else:
         checks.append(_check("Broken Links", "pass", "No internal links found", None))
-
-    # Form receiver — only surfaced when forms are present on the page.
-    # Framer handles submission entirely via JavaScript (not the HTML action attribute),
-    # so we cannot determine receiver status from the DOM. Instead we flag forms as
-    # "needs manual check" so the reviewer remembers to verify in the Framer editor.
-    forms = raw.get("forms") or []
-    if forms:
-        submission_forms = [f for f in forms if f.get("method") != "dialog" and f.get("inputCount", 0) > 0]
-        if submission_forms:
-            n = len(submission_forms)
-            checks.append(_check(
-                "Form Receiver",
-                "warn",
-                f"{n} form{'s' if n != 1 else ''} found — verify {'their' if n != 1 else 'its'} receiver is configured in Framer (email / spreadsheet / webhook)",
-                None,
-            ))
 
     return checks
 

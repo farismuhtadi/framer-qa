@@ -185,17 +185,6 @@ async def _run_qa(job: "Job") -> str | None:
     pages = get_pages_from_sitemap(site_url)
     print(f"   Found {len(pages)} page(s)")
 
-    # Site-level SEO — run once on the homepage
-    site_seo = None
-    async with ScreenshotTaker(viewports, config.get("timeout_ms", 15000)) as site_taker:
-        print("\n🌐 Checking site-level SEO (language, favicon, social preview)...")
-        try:
-            site_seo = await site_taker.check_site_seo(site_url)
-            p, w, f = site_seo["pass_count"], site_seo["warn_count"], site_seo["fail_count"]
-            print(f"   ✅ {p} pass  ⚠️  {w} warn  ❌ {f} fail")
-        except Exception as e:
-            print(f"   ⚠️  Site SEO check failed: {e}")
-
     # Helpers
     def page_path(url):
         p = url.replace(site_url, "").strip().rstrip("/")
@@ -213,45 +202,71 @@ async def _run_qa(job: "Job") -> str | None:
     results = []
     total = len(pages)
 
+    # Single browser instance for the entire job — site SEO + all page work.
+    # Previously two ScreenshotTaker blocks were used (two Chrome processes, ~2× RAM).
     async with ScreenshotTaker(viewports, config.get("timeout_ms", 15000)) as taker:
+
+        # Site-level SEO — run once on the homepage inside the shared browser
+        site_seo = None
+        print("\n🌐 Checking site-level SEO (language, favicon, social preview)...")
+        try:
+            site_seo = await taker.check_site_seo(site_url)
+            p, w, f = site_seo["pass_count"], site_seo["warn_count"], site_seo["fail_count"]
+            print(f"   ✅ {p} pass  ⚠️  {w} warn  ❌ {f} fail")
+        except Exception as e:
+            print(f"   ⚠️  Site SEO check failed: {e}")
+
         for idx, page_url in enumerate(pages):
             path = page_path(page_url)
             print(f"\n{'─'*55}")
             print(f"📄 [{idx+1}/{total}] {path}")
             job.progress = 0.05 + (idx / total) * 0.88
 
-            # SEO
-            print("   🔎 Running SEO checks...")
-            try:
-                seo = await taker.check_seo(page_url)
-                print(f"   ✅ {seo['pass_count']} pass  ⚠️  {seo['warn_count']} warn  ❌ {seo['fail_count']} fail")
-            except Exception as e:
-                print(f"   ⚠️  SEO check failed: {e}")
-                seo = {"url": page_url, "raw": {}, "checks": [], "pass_count": 0, "warn_count": 0, "fail_count": 1}
-
             vp_results = []
             if seo_only:
-                # No screenshots or Figma — still append a viewport entry so the report renders
+                # SEO-only: one page load for the check, no screenshots
+                print("   🔎 Running SEO checks...")
+                try:
+                    seo = await taker.check_seo(page_url)
+                    print(f"   ✅ {seo['pass_count']} pass  ⚠️  {seo['warn_count']} warn  ❌ {seo['fail_count']} fail")
+                except Exception as e:
+                    print(f"   ⚠️  SEO check failed: {e}")
+                    seo = {"url": page_url, "raw": {}, "checks": [], "pass_count": 0, "warn_count": 0, "fail_count": 1}
                 for vp in viewports:
                     vp_results.append({"viewport": vp, "live_path": None,
                                        "figma_path": None, "diff_path": None, "similarity": None})
                 results.append({"url": page_url, "path": path, "seo": seo, "viewports": vp_results})
                 continue
 
-            for vp in viewports:
+            # Full mode: combine SEO check + first viewport screenshot into one navigation,
+            # then take remaining viewport screenshots separately.
+            seo = None
+            for vp_idx, vp in enumerate(viewports):
                 print(f"   📸 Screenshot: {vp['name']} ({vp['width']}px)...")
                 live_path = None
                 try:
-                    live_bytes = await taker.take_screenshot(page_url, vp)
-                    live_path  = os.path.join(shots_dir, f"{safe_name(path)}_{vp['name'].lower()}_live.png")
+                    if vp_idx == 0:
+                        # First viewport — run SEO check and screenshot together (one page load)
+                        print("   🔎 Running SEO checks (combined with first screenshot)...")
+                        seo, live_bytes = await taker.check_seo_and_screenshot(page_url, vp)
+                        print(f"   ✅ {seo['pass_count']} pass  ⚠️  {seo['warn_count']} warn  ❌ {seo['fail_count']} fail")
+                    else:
+                        live_bytes = await taker.take_screenshot(page_url, vp)
+                    live_path = os.path.join(shots_dir, f"{safe_name(path)}_{vp['name'].lower()}_live.png")
                     with open(live_path, "wb") as f:
                         f.write(live_bytes)
                 except Exception as e:
                     print(f"   ⚠️  Screenshot failed: {e}")
+                    if vp_idx == 0 and seo is None:
+                        # SEO check also failed since it's combined — fall back to separate check
+                        try:
+                            seo = await taker.check_seo(page_url)
+                        except Exception:
+                            seo = {"url": page_url, "raw": {}, "checks": [], "pass_count": 0, "warn_count": 0, "fail_count": 1}
 
+                # Figma comparison for this viewport
                 figma_path = diff_path = None
                 similarity = None
-
                 if has_figma and live_path:
                     frames_for_page = figma_cfg["page_frames"].get(path, {})
                     node_id = frames_for_page.get(vp["name"])
@@ -280,6 +295,9 @@ async def _run_qa(job: "Job") -> str | None:
                     "figma_path": figma_path, "diff_path": diff_path,
                     "similarity": similarity,
                 })
+
+            if seo is None:
+                seo = {"url": page_url, "raw": {}, "checks": [], "pass_count": 0, "warn_count": 0, "fail_count": 1}
 
             results.append({"url": page_url, "path": path, "seo": seo, "viewports": vp_results})
 

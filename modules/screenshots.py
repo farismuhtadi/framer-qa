@@ -27,7 +27,29 @@ class ScreenshotTaker:
         self._playwright = await async_playwright().start()
         self._browser = await self._playwright.chromium.launch(
             headless=True,
-            args=["--no-sandbox", "--disable-setuid-sandbox"],
+            args=[
+                "--no-sandbox",
+                "--disable-setuid-sandbox",
+                # ── Memory / container optimisations ──────────────────────────
+                # Critical in Docker/Render: Chrome defaults to /dev/shm which
+                # is only 64 MB in most containers — causes crashes / OOM.
+                "--disable-dev-shm-usage",
+                # Reduce renderer process overhead
+                "--no-zygote",
+                # Skip unnecessary subsystems
+                "--disable-gpu",
+                "--disable-extensions",
+                "--disable-background-networking",
+                "--disable-background-timer-throttling",
+                "--disable-backgrounding-occluded-windows",
+                "--disable-default-apps",
+                "--disable-sync",
+                "--no-first-run",
+                "--mute-audio",
+                "--hide-scrollbars",
+                # Limit blink features that consume memory
+                "--blink-settings=imagesEnabled=true",
+            ],
         )
         return self
 
@@ -53,11 +75,37 @@ class ScreenshotTaker:
         try:
             await page.goto(url, wait_until="networkidle", timeout=self.timeout_ms)
             await self._dismiss_overlays(page)
-            await asyncio.sleep(0.5)  # brief pause for animations to settle
+            await asyncio.sleep(0.5)
             png_bytes = await page.screenshot(full_page=True, type="png")
         finally:
+            await page.close()
             await context.close()
         return png_bytes
+
+    async def check_seo_and_screenshot(self, url: str, viewport: dict) -> tuple[dict, bytes]:
+        """
+        Loads a page ONCE and returns both SEO results and a full-page screenshot.
+        Reusing the same navigation halves the browser work for the first viewport.
+
+        Returns: (seo_dict, png_bytes)
+        """
+        from modules.seo_checker import check_seo
+
+        context = await self._browser.new_context(
+            viewport={"width": viewport["width"], "height": viewport["height"]},
+            device_scale_factor=1,
+        )
+        page = await context.new_page()
+        try:
+            await page.goto(url, wait_until="networkidle", timeout=self.timeout_ms)
+            seo = await check_seo(page, url)
+            await self._dismiss_overlays(page)
+            await asyncio.sleep(0.5)
+            png_bytes = await page.screenshot(full_page=True, type="png")
+        finally:
+            await page.close()
+            await context.close()
+        return seo, png_bytes
 
     # ── SEO Check ───────────────────────────────────────────────────────────────
 
@@ -77,13 +125,14 @@ class ScreenshotTaker:
             await page.goto(url, wait_until="networkidle", timeout=self.timeout_ms)
             result = await check_site_seo(page, url)
         finally:
+            await page.close()
             await context.close()
         return result
 
     async def check_seo(self, url: str) -> dict:
         """
-        Loads a page and checks page-level signals:
-        meta title, meta description, canonical URL, robots.
+        Loads a page and checks page-level signals only (no screenshot).
+        Used in SEO-only mode.
         """
         from modules.seo_checker import check_seo
 
@@ -96,6 +145,7 @@ class ScreenshotTaker:
             await page.goto(url, wait_until="networkidle", timeout=self.timeout_ms)
             result = await check_seo(page, url)
         finally:
+            await page.close()
             await context.close()
         return result
 

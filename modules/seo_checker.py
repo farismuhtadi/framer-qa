@@ -36,6 +36,12 @@ _EXTRACT_JS = """() => {
         document.querySelector('link[rel="shortcut icon"]') ||
         document.querySelector('link[rel="apple-touch-icon"]');
     const h1Els = Array.from(document.querySelectorAll('h1'));
+    const formEls = Array.from(document.querySelectorAll('form'));
+    const forms = formEls.map(f => ({
+        action: f.getAttribute('action'),
+        method: (f.getAttribute('method') || 'get').toLowerCase(),
+        inputCount: f.querySelectorAll('input:not([type="hidden"]), textarea, select').length,
+    }));
     const origin = location.origin;
     const internalLinks = Array.from(document.querySelectorAll('a[href]'))
         .map(a => {
@@ -64,6 +70,7 @@ _EXTRACT_JS = """() => {
         robots:              get('meta[name="robots"]'),
         h1_texts:            h1Els.map(el => el.innerText.trim()).filter(Boolean),
         internal_links:      [...new Set(internalLinks)],
+        forms:               forms,
     };
 }"""
 
@@ -238,6 +245,31 @@ def _score_page_checks(raw: dict, page_url: str) -> list[dict]:
             checks.append(_check("Broken Links", "pass", f"{len(internal_links)} internal link{'s' if len(internal_links) != 1 else ''} checked", None))
     else:
         checks.append(_check("Broken Links", "pass", "No internal links found", None))
+
+    # Form receiver — only checked when forms are present on the page
+    forms = raw.get("forms") or []
+    if forms:
+        # A form without an action attribute (null) or an empty action likely has no receiver configured.
+        # method="dialog" forms are native dialogs and don't need a submission receiver.
+        submission_forms = [f for f in forms if f.get("method") != "dialog" and f.get("inputCount", 0) > 0]
+        if submission_forms:
+            no_action = [f for f in submission_forms if not f.get("action")]
+            if no_action:
+                count = len(no_action)
+                total = len(submission_forms)
+                checks.append(_check(
+                    "Form Receiver",
+                    "warn",
+                    f"{count} of {total} form{'s' if total != 1 else ''} {'have' if count != 1 else 'has'} no submission action — set a receiver in Framer's form settings",
+                    None,
+                ))
+            else:
+                checks.append(_check(
+                    "Form Receiver",
+                    "pass",
+                    f"{len(submission_forms)} form{'s' if len(submission_forms) != 1 else ''} {'have' if len(submission_forms) != 1 else 'has'} receivers configured",
+                    None,
+                ))
 
     return checks
 

@@ -308,14 +308,20 @@ def _render_html(*, site_url, date_str, total_pages, total_pass, total_warn,
     border-radius: 7px;
     border: none;
     background: transparent;
-    color: var(--muted);
+    color: #9ca3af;
     cursor: pointer;
     font-size: 12.5px;
     font-weight: 600;
     transition: background .15s, color .15s, box-shadow .15s;
+    letter-spacing: 0.01em;
   }}
-  .vp-tab:hover {{ color: var(--text); background: rgba(0,0,0,.04); }}
-  .vp-tab.active {{ background: var(--surface); color: var(--text); box-shadow: var(--shadow-sm); }}
+  .vp-tab:hover {{ color: var(--muted2, #374151); background: rgba(0,0,0,.04); }}
+  .vp-tab.active {{
+    background: var(--surface);
+    color: var(--accent);
+    box-shadow: var(--shadow-sm);
+    border: 1px solid rgba(99,102,241,.18);
+  }}
 
   .vp-panel {{ display: none; }}
   .vp-panel.active {{ display: block; }}
@@ -395,6 +401,9 @@ def _render_html(*, site_url, date_str, total_pages, total_pass, total_warn,
   .site-check-card:hover {{ box-shadow: var(--shadow); }}
   .site-check-card.og-image-card {{
     grid-column: 1 / -1;
+  }}
+  .site-check-card.wide-card {{
+    grid-column: span 2;
   }}
   .site-check-header {{
     display: flex;
@@ -844,8 +853,13 @@ def _render_site_seo_section(site_seo: dict) -> str:
             truncated = (value[:100] + "…") if len(value) > 100 else value
             extra = f'<div class="site-check-value">{truncated}</div>'
 
-        # Social Preview image card spans 2 columns for the wider image
-        card_class = "site-check-card og-image-card" if name == "Social Preview Image" else "site-check-card"
+        # Card width: OG image = full row, Meta Description = 2 cols, rest = 1 col
+        if name == "Social Preview Image":
+            card_class = "site-check-card og-image-card"
+        elif name == "Meta Description":
+            card_class = "site-check-card wide-card"
+        else:
+            card_class = "site-check-card"
 
         cards += f'''
     <div class="{card_class} {status}">

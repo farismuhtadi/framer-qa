@@ -474,6 +474,65 @@ def _render_html(*, site_url, date_str, total_pages, total_pass, total_warn,
     padding: 0 1px;
   }}
 
+  /* ── Compare Slider ── */
+  .compare-container {{
+    position: relative;
+    overflow: hidden;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    cursor: col-resize;
+    user-select: none;
+    -webkit-user-select: none;
+  }}
+  .compare-base {{
+    width: 100%;
+    display: block;
+  }}
+  .compare-top {{
+    position: absolute;
+    top: 0; left: 0;
+    width: 100%;
+    display: block;
+    clip-path: inset(0 50% 0 0);
+    pointer-events: none;
+  }}
+  .compare-line {{
+    position: absolute;
+    top: 0; left: 50%;
+    transform: translateX(-50%);
+    width: 2px;
+    height: 100%;
+    background: #fff;
+    box-shadow: 0 0 6px rgba(0,0,0,.45);
+    pointer-events: none;
+  }}
+  .compare-knob {{
+    position: absolute;
+    top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    width: 38px; height: 38px;
+    background: #fff;
+    border-radius: 50%;
+    box-shadow: 0 2px 10px rgba(0,0,0,.3);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    pointer-events: none;
+  }}
+  .compare-label {{
+    position: absolute;
+    bottom: 10px;
+    background: rgba(0,0,0,.55);
+    color: #fff;
+    font-size: 10.5px;
+    font-weight: 700;
+    letter-spacing: .4px;
+    padding: 3px 9px;
+    border-radius: 4px;
+    pointer-events: none;
+    text-transform: uppercase;
+  }}
+
   /* ── Footer ── */
   .footer {{
     border-top: 1px solid var(--border);
@@ -687,6 +746,29 @@ def _render_html(*, site_url, date_str, total_pages, total_pass, total_warn,
   const firstCard = document.querySelector('.page-card');
   if (firstCard) firstCard.classList.add('open');
 
+  // ── Compare sliders (Live vs Figma) ──────────────────────────────────────
+  document.querySelectorAll('.compare-container').forEach(container => {{
+    const topImg  = container.querySelector('.compare-top');
+    const line    = container.querySelector('.compare-line');
+    const knob    = container.querySelector('.compare-knob');
+    let dragging  = false;
+
+    function update(clientX) {{
+      const rect = container.getBoundingClientRect();
+      const pct  = Math.max(1, Math.min(99, (clientX - rect.left) / rect.width * 100));
+      topImg.style.clipPath   = `inset(0 ${{100 - pct}}% 0 0)`;
+      line.style.left         = `${{pct}}%`;
+      knob.style.left         = `${{pct}}%`;
+    }}
+
+    container.addEventListener('mousedown',  e => {{ dragging = true;  update(e.clientX); e.preventDefault(); }});
+    window.addEventListener   ('mousemove',  e => {{ if (dragging) update(e.clientX); }});
+    window.addEventListener   ('mouseup',    ()  => {{ dragging = false; }});
+    container.addEventListener('touchstart', e => {{ dragging = true;  update(e.touches[0].clientX); }}, {{passive: true}});
+    window.addEventListener   ('touchmove',  e => {{ if (dragging) update(e.touches[0].clientX); }},    {{passive: true}});
+    window.addEventListener   ('touchend',   ()  => {{ dragging = false; }});
+  }});
+
   // Per-page notes — persisted in localStorage
   const NOTES_KEY = 'framerqa_notes_{site_url_safe}';
   function loadNotes() {{
@@ -787,7 +869,6 @@ def _render_vp_panel(vp_result: dict, idx: int, group_id: str, safe_id: str, act
     if not live_rel:
         return f'<div class="vp-panel {active}" data-group="{group_id}" data-vp="{idx}"><div class="no-figma">Screenshot not available</div></div>'
 
-    # Image switcher tabs
     has_figma   = figma_rel is not None
     has_diff    = diff_rel is not None
 
@@ -797,31 +878,52 @@ def _render_vp_panel(vp_result: dict, idx: int, group_id: str, safe_id: str, act
         label = similarity_label(similarity)
         sim_badge = f'<div class="sim-badge badge {color}">{similarity:.1f}% — {label}</div>'
 
-    img_tabs  = f'<button class="img-tab active" data-group="{view_group}" data-view="live">Live</button>\n'
-    img_live  = f'<div class="img-panel active" data-group="{view_group}" data-view="live"><img class="screenshot" src="{live_rel}" alt="Live screenshot" loading="lazy"></div>'
-    img_figma = ""
-    img_diff  = ""
+    # When Figma is available, Compare slider is the default tab.
+    # When Figma is not available, Live is the default (no slider).
+    default_view = "compare" if has_figma else "live"
+
+    img_tabs = ""
+    img_panels = ""
 
     if has_figma:
+        # Compare slider tab (default)
+        img_tabs += f'<button class="img-tab active" data-group="{view_group}" data-view="compare">⇔ Compare</button>\n'
+        knob_svg = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#374151" stroke-width="2.5"><line x1="3" y1="12" x2="21" y2="12"/><polyline points="8 7 3 12 8 17"/><polyline points="16 7 21 12 16 17"/></svg>'
+        img_panels += f'''<div class="img-panel active" data-group="{view_group}" data-view="compare">
+  <div class="compare-container">
+    <img class="compare-base" src="{figma_rel}" alt="Figma design" loading="lazy">
+    <img class="compare-top"  src="{live_rel}"  alt="Live site"    loading="lazy">
+    <div class="compare-line"></div>
+    <div class="compare-knob">{knob_svg}</div>
+    <div class="compare-label" style="left:10px">Live</div>
+    <div class="compare-label" style="right:10px">Figma</div>
+  </div>
+</div>\n'''
+        # Live tab
+        img_tabs  += f'<button class="img-tab" data-group="{view_group}" data-view="live">Live</button>\n'
+        img_panels += f'<div class="img-panel" data-group="{view_group}" data-view="live"><img class="screenshot" src="{live_rel}" alt="Live screenshot" loading="lazy"></div>\n'
+        # Figma tab
         img_tabs  += f'<button class="img-tab" data-group="{view_group}" data-view="figma">Figma</button>\n'
-        img_figma  = f'<div class="img-panel" data-group="{view_group}" data-view="figma"><img class="screenshot" src="{figma_rel}" alt="Figma export" loading="lazy"></div>'
+        img_panels += f'<div class="img-panel" data-group="{view_group}" data-view="figma"><img class="screenshot" src="{figma_rel}" alt="Figma export" loading="lazy"></div>\n'
+    else:
+        # No Figma — just show Live
+        img_tabs  += f'<button class="img-tab active" data-group="{view_group}" data-view="live">Live</button>\n'
+        img_panels += f'<div class="img-panel active" data-group="{view_group}" data-view="live"><img class="screenshot" src="{live_rel}" alt="Live screenshot" loading="lazy"></div>\n'
 
     if has_diff:
-        img_tabs += f'<button class="img-tab" data-group="{view_group}" data-view="diff">Diff</button>\n'
-        img_diff  = f'<div class="img-panel" data-group="{view_group}" data-view="diff"><img class="screenshot" src="{diff_rel}" alt="Pixel diff" loading="lazy"></div>'
+        img_tabs  += f'<button class="img-tab" data-group="{view_group}" data-view="diff">Diff</button>\n'
+        img_panels += f'<div class="img-panel" data-group="{view_group}" data-view="diff"><img class="screenshot" src="{diff_rel}" alt="Pixel diff" loading="lazy"></div>\n'
 
     no_figma_msg = ""
     if not has_figma:
-        no_figma_msg = f'<div class="no-figma" style="margin-top:12px">No Figma frame mapped for this page.<br>Add a node ID to <code>config.json → figma.page_frames</code> to enable comparison.</div>'
+        no_figma_msg = '<div class="no-figma" style="margin-top:12px">No Figma frame mapped for this page.<br>Add a node ID in the Frame Mappings to enable comparison.</div>'
 
     return f"""
 <div class="vp-panel {active}" data-group="{group_id}" data-vp="{idx}">
   {sim_badge}
   <div class="img-view-tabs" data-group="{view_group}">{img_tabs}</div>
   <div class="img-panels">
-    {img_live}
-    {img_figma}
-    {img_diff}
+    {img_panels}
   </div>
   {no_figma_msg}
 </div>"""

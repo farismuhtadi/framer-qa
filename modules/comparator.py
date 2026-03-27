@@ -50,26 +50,27 @@ def compare_images(
     similarity = (total_pixels - changed_pixels) / total_pixels * 100.0
 
     # Build diff image:
-    # - Base: faded (40% opacity) live screenshot
-    # - Changed pixels: bright red overlay
-    faded = live_img.copy()
-    faded_arr = np.array(faded, dtype=np.uint8)
+    # - Base: slightly faded live screenshot for context
+    # - Changed pixels: dilated bright red blobs so small diffs are visible
+    live_arr = np.array(live_img, dtype=np.uint8)
 
-    # Dim the base image
-    overlay = faded_arr.copy().astype(np.float32)
-    overlay[:, :, :3] = overlay[:, :, :3] * 0.45
+    # Dilate the diff mask to turn scattered pixels into visible blobs
+    mask_img    = Image.fromarray((diff_mask * 255).astype(np.uint8), "L")
+    mask_dilated = mask_img.filter(ImageFilter.MaxFilter(size=9))  # 9px dilation radius
+    blob_mask   = np.array(mask_dilated) > 0  # H×W bool
 
-    # Highlight changed pixels in red (#FF3B30 with full opacity)
-    red_mask = diff_mask
-    overlay[red_mask, 0] = 255  # R
-    overlay[red_mask, 1] = 59   # G
-    overlay[red_mask, 2] = 48   # B
-    overlay[red_mask, 3] = 255  # A
+    # Dim the base image (keeps context readable)
+    base = live_arr.astype(np.float32)
+    base[:, :, :3] = base[:, :, :3] * 0.55
 
-    diff_img = Image.fromarray(overlay.astype(np.uint8), "RGBA")
+    # Paint dilated blobs red with some transparency for a heatmap feel
+    red_r, red_g, red_b = 239, 68, 68  # Tailwind red-500
+    alpha_blend = 0.75  # 75% red over dimmed base
+    base[blob_mask, 0] = base[blob_mask, 0] * (1 - alpha_blend) + red_r * alpha_blend
+    base[blob_mask, 1] = base[blob_mask, 1] * (1 - alpha_blend) + red_g * alpha_blend
+    base[blob_mask, 2] = base[blob_mask, 2] * (1 - alpha_blend) + red_b * alpha_blend
 
-    # Slight blur on non-changed regions to reduce noise visually
-    diff_img = diff_img.convert("RGB")
+    diff_img = Image.fromarray(base.astype(np.uint8), "RGBA").convert("RGB")
     diff_img.save(diff_output_path, format="PNG")
 
     return similarity

@@ -67,6 +67,9 @@ def _render_html(*, site_url, date_str, total_pages, total_pass, total_warn,
 
     pages_html = "\n".join(_render_page(r, viewports, output_dir) for r in results)
 
+    # Safe key for localStorage (strip protocol + special chars)
+    site_url_safe = site_url.replace("https://", "").replace("http://", "").replace("/", "_").replace(".", "_").replace("-", "_")
+
     seo_table_rows = "\n".join(_render_seo_row(r) for r in results)
     seo_check_names = []
     if results:
@@ -483,6 +486,76 @@ def _render_html(*, site_url, date_str, total_pages, total_pass, total_warn,
     background: var(--surface);
     margin-top: 16px;
   }}
+
+  /* ── Print / Export button ── */
+  .print-btn {{
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 7px 16px;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    background: var(--surface);
+    color: var(--text);
+    font-size: 12.5px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all .15s;
+    font-family: inherit;
+  }}
+  .print-btn:hover {{ background: var(--accent-light); border-color: var(--accent); color: var(--accent); }}
+
+  /* ── Per-page notes ── */
+  .page-notes-wrapper {{
+    margin-top: 20px;
+    padding-top: 16px;
+    border-top: 1px solid var(--border);
+  }}
+  .page-notes-label {{
+    font-size: 11.5px;
+    font-weight: 600;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: .5px;
+    margin-bottom: 6px;
+  }}
+  .page-notes {{
+    min-height: 64px;
+    padding: 10px 14px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: var(--subtle);
+    font-size: 13px;
+    color: var(--text);
+    outline: none;
+    line-height: 1.6;
+    font-family: inherit;
+    transition: border-color .15s, background .15s;
+  }}
+  .page-notes:focus {{ border-color: var(--accent); background: #ffffff; }}
+  .page-notes:empty:before {{
+    content: attr(data-placeholder);
+    color: var(--muted);
+    pointer-events: none;
+  }}
+
+  /* ── Print media ── */
+  @media print {{
+    .print-btn {{ display: none !important; }}
+    .vp-tabs, .img-view-tabs {{ display: none !important; }}
+    .page-card-body {{ display: block !important; }}
+    .page-card {{ break-inside: avoid; margin-bottom: 24px; box-shadow: none; border: 1px solid #d1d5db; }}
+    .vp-panel {{ display: block !important; }}
+    .img-panel {{ display: block !important; margin-bottom: 8px; }}
+    .screenshot {{ max-height: 400px; object-fit: contain; }}
+    body {{ background: white; font-size: 12px; }}
+    .header {{ box-shadow: none; print-color-adjust: exact; -webkit-print-color-adjust: exact; }}
+    .stat-card {{ break-inside: avoid; print-color-adjust: exact; -webkit-print-color-adjust: exact; }}
+    .summary {{ grid-template-columns: repeat(4, 1fr); }}
+    .container {{ padding: 16px 24px; }}
+    .page-notes-wrapper {{ display: none; }}
+    .site-checks-grid {{ grid-template-columns: repeat(3, 1fr); }}
+  }}
 </style>
 </head>
 <body>
@@ -495,9 +568,15 @@ def _render_html(*, site_url, date_str, total_pages, total_pass, total_warn,
       <div class="subtitle"><a href="{site_url}" target="_blank">{site_url}</a></div>
     </div>
   </div>
-  <div class="header-right">
-    <strong>{total_pages} page{"s" if total_pages != 1 else ""} checked</strong><br>
-    {date_str}
+  <div style="display:flex;align-items:center;gap:20px">
+    <div class="header-right">
+      <strong>{total_pages} page{"s" if total_pages != 1 else ""} checked</strong><br>
+      {date_str}
+    </div>
+    <button class="print-btn" onclick="window.print()">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
+      Export PDF
+    </button>
   </div>
 </div>
 
@@ -596,6 +675,25 @@ def _render_html(*, site_url, date_str, total_pages, total_pass, total_warn,
   // Open first page card by default
   const firstCard = document.querySelector('.page-card');
   if (firstCard) firstCard.classList.add('open');
+
+  // Per-page notes — persisted in localStorage
+  const NOTES_KEY = 'framerqa_notes_{site_url_safe}';
+  function loadNotes() {{
+    try {{ return JSON.parse(localStorage.getItem(NOTES_KEY) || '{{}}'); }} catch {{ return {{}}; }}
+  }}
+  function saveNotes(notes) {{
+    try {{ localStorage.setItem(NOTES_KEY, JSON.stringify(notes)); }} catch {{}}
+  }}
+  document.querySelectorAll('.page-notes').forEach(el => {{
+    const page = el.dataset.page;
+    const notes = loadNotes();
+    if (notes[page]) el.innerHTML = notes[page];
+    el.addEventListener('input', () => {{
+      const n = loadNotes();
+      n[page] = el.innerHTML;
+      saveNotes(n);
+    }});
+  }});
 </script>
 </body>
 </html>"""
@@ -649,6 +747,10 @@ def _render_page(result: dict, viewports: list[dict], output_dir: str) -> str:
       {vp_tabs}
     </div>
     {vp_panels}
+    <div class="page-notes-wrapper">
+      <div class="page-notes-label">📝 Notes</div>
+      <div class="page-notes" contenteditable="true" data-page="{safe_id}" data-placeholder="Add QA notes for this page…"></div>
+    </div>
   </div>
 </div>"""
 

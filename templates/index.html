@@ -1189,6 +1189,27 @@ async function startJob() {
   document.getElementById('run-btn').disabled = true;
   document.getElementById('run-btn').textContent = 'Starting…';
 
+  // Validate Figma credentials before launching the job
+  const figmaToken  = document.getElementById('figma-token').value.trim();
+  const figmaFileId = document.getElementById('figma-file-id').value.trim();
+  const seoOnly     = document.getElementById('seo-only').checked;
+  if (figmaToken && figmaFileId && !seoOnly) {
+    document.getElementById('run-btn').textContent = 'Validating Figma…';
+    try {
+      const vRes  = await fetch('/api/figma/validate', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ api_token: figmaToken, file_id: figmaFileId }),
+      });
+      const vData = await vRes.json();
+      if (!vData.ok) {
+        showError(`Figma validation failed: ${vData.error}`);
+        document.getElementById('run-btn').disabled = false;
+        document.getElementById('run-btn').textContent = 'Run QA Check';
+        return;
+      }
+    } catch (e) { /* non-blocking — if validation itself errors, proceed */ }
+  }
+
   try {
     const res  = await fetch('/api/run', {
       method: 'POST',

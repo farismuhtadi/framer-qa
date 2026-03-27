@@ -391,6 +391,26 @@ def api_status(job_id: str):
     return jsonify(job.to_dict(include_logs_from=since))
 
 
+@app.route("/api/figma/validate", methods=["POST"])
+def api_figma_validate():
+    """Quick token+file validation — called before starting a job."""
+    data    = request.json or {}
+    token   = (data.get("api_token") or "").strip()
+    file_id = (data.get("file_id") or "").strip()
+    if not token:
+        return jsonify({"ok": False, "error": "No API token provided"}), 400
+    if not file_id:
+        return jsonify({"ok": False, "error": "No File ID provided"}), 400
+    try:
+        from modules.figma import FigmaClient
+        client = FigmaClient(token, file_id)
+        # Just fetch file metadata — lightweight, no frames needed
+        client.list_frames()
+        return jsonify({"ok": True})
+    except Exception as e:
+        return jsonify({"ok": False, "error": str(e)}), 400
+
+
 @app.route("/api/figma/frames", methods=["POST"])
 def api_figma_frames():
     """Lists all frames in a Figma file. Used by the UI for mapping setup."""

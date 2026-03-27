@@ -35,6 +35,17 @@ _EXTRACT_JS = """() => {
         document.querySelector('link[rel="icon"]') ||
         document.querySelector('link[rel="shortcut icon"]') ||
         document.querySelector('link[rel="apple-touch-icon"]');
+    const h1Els = Array.from(document.querySelectorAll('h1'));
+    const origin = location.origin;
+    const internalLinks = Array.from(document.querySelectorAll('a[href]'))
+        .map(a => {
+            try {
+                const url = new URL(a.href, location.href);
+                if (url.origin === origin && url.pathname !== location.pathname) return url.origin + url.pathname;
+                return null;
+            } catch { return null; }
+        })
+        .filter(Boolean);
     return {
         title:               document.title || null,
         meta_description:    get('meta[name="description"]'),
@@ -51,6 +62,8 @@ _EXTRACT_JS = """() => {
         twitter_description: get('meta[name="twitter:description"]'),
         twitter_image:       get('meta[name="twitter:image"]'),
         robots:              get('meta[name="robots"]'),
+        h1_texts:            h1Els.map(el => el.innerText.trim()).filter(Boolean),
+        internal_links:      [...new Set(internalLinks)],
     };
 }"""
 
@@ -188,6 +201,15 @@ def _score_page_checks(raw: dict, page_url: str) -> list[dict]:
     else:
         checks.append(_check("Meta Description", "pass", f"{len(desc)} chars", desc))
 
+    # H1
+    h1_texts = raw.get("h1_texts") or []
+    if not h1_texts:
+        checks.append(_check("H1 Heading", "fail", "No H1 found on page", None))
+    elif len(h1_texts) > 1:
+        checks.append(_check("H1 Heading", "warn", f"{len(h1_texts)} H1s found — should have exactly one", " / ".join(h1_texts[:3])))
+    else:
+        checks.append(_check("H1 Heading", "pass", h1_texts[0][:80], h1_texts[0]))
+
     # Canonical URL
     canonical = raw.get("canonical")
     if not canonical:
@@ -204,7 +226,40 @@ def _score_page_checks(raw: dict, page_url: str) -> list[dict]:
     else:
         checks.append(_check("Robots", "pass", "Not set (defaults to index, follow)", None))
 
+    # Broken internal links
+    internal_links = raw.get("internal_links") or []
+    if internal_links:
+        broken = _find_broken_links(internal_links)
+        if broken:
+            checks.append(_check("Broken Links", "fail",
+                                 f"{len(broken)} broken link{'s' if len(broken) != 1 else ''}: {', '.join(broken[:3])}{'…' if len(broken) > 3 else ''}",
+                                 "\n".join(broken)))
+        else:
+            checks.append(_check("Broken Links", "pass", f"{len(internal_links)} internal link{'s' if len(internal_links) != 1 else ''} checked", None))
+    else:
+        checks.append(_check("Broken Links", "pass", "No internal links found", None))
+
     return checks
+
+
+def _find_broken_links(urls: list[str]) -> list[str]:
+    """HEAD-checks a list of URLs and returns those that return 4xx/5xx."""
+    import concurrent.futures
+    broken = []
+
+    def check(url):
+        try:
+            r = requests.head(url, timeout=6, allow_redirects=True,
+                              headers={"User-Agent": "FramerQA/1.0"})
+            if r.status_code >= 400:
+                return url
+            return None
+        except Exception:
+            return url  # treat connection errors as broken
+
+    with concurrent.futures.ThreadPoolExecutor(max_workers=8) as ex:
+        results = ex.map(check, urls[:30])  # cap at 30 links per page
+    return [u for u in results if u]
 
 
 # ── Helpers ───────────────────────────────────────────────────────────────────

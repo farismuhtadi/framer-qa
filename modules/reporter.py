@@ -636,9 +636,15 @@ def _render_html(*, site_url, date_str, total_pages, total_pass, total_warn,
 <script>
   // Save as PDF
   function savePDF() {{
-    // Expand all cards before printing so nothing is clipped
+    // Expand all cards first so nothing is clipped in the PDF
     document.querySelectorAll('.page-card').forEach(c => c.classList.add('open'));
-    window.print();
+    // If we're inside an iframe (the dashboard embeds the report),
+    // window.print() is blocked by the browser — open in a new tab instead.
+    if (window.self !== window.top) {{
+      window.open(window.location.href, '_blank');
+    }} else {{
+      window.print();
+    }}
   }}
 
   // Page card accordion

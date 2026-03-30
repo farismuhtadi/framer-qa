@@ -149,6 +149,108 @@ class ScreenshotTaker:
             await context.close()
         return result
 
+    async def extract_styles_at_regions(self, url: str, viewport: dict, regions: list[dict]) -> list[dict]:
+        """
+        For each changed region found in the diff, navigates to the page,
+        locates the DOM element at the region centre via elementFromPoint(),
+        and returns its key computed CSS properties.
+
+        Returns a list of annotation dicts:
+          {index, selector, tag, text_preview, styles: {…}, region: {x1,y1,x2,y2}}
+        """
+        if not regions:
+            return []
+
+        context = await self._browser.new_context(
+            viewport={"width": viewport["width"], "height": viewport["height"]},
+            device_scale_factor=1,
+        )
+        page = await context.new_page()
+        try:
+            await page.goto(url, wait_until="networkidle", timeout=self.timeout_ms)
+
+            annotations = []
+            for r in regions:
+                cx, cy = r["cx"], r["cy"]
+                result = await page.evaluate(f"""() => {{
+                    const el = document.elementFromPoint({cx}, {cy});
+                    if (!el || el === document.body || el === document.documentElement) return null;
+                    const cs  = window.getComputedStyle(el);
+                    const tag = el.tagName.toLowerCase();
+
+                    // Build a short selector: tag + id or first class
+                    let sel = tag;
+                    if (el.id) sel += '#' + el.id;
+                    else if (el.classList.length) sel += '.' + Array.from(el.classList).slice(0, 2).join('.');
+
+                    // Short text preview
+                    const text = (el.innerText || '').trim().replace(/\\s+/g, ' ').substring(0, 60);
+
+                    // Only include properties that differ from browser defaults
+                    function v(prop) {{ return cs.getPropertyValue(prop).trim(); }}
+                    const display = v('display');
+                    const isFlex  = display === 'flex' || display === 'inline-flex';
+                    const isGrid  = display === 'grid'  || display === 'inline-grid';
+
+                    const styles = {{}};
+                    const padding = v('padding');
+                    if (padding && padding !== '0px') styles.padding = padding;
+
+                    const margin = v('margin');
+                    if (margin && margin !== '0px') styles.margin = margin;
+
+                    const gap = v('gap');
+                    if (gap && gap !== 'normal' && gap !== '0px') styles.gap = gap;
+
+                    const fontSize = v('font-size');
+                    if (fontSize) styles['font-size'] = fontSize;
+
+                    const fontWeight = v('font-weight');
+                    if (fontWeight && fontWeight !== '400') styles['font-weight'] = fontWeight;
+
+                    const lineHeight = v('line-height');
+                    if (lineHeight && lineHeight !== 'normal') styles['line-height'] = lineHeight;
+
+                    const letterSpacing = v('letter-spacing');
+                    if (letterSpacing && letterSpacing !== 'normal' && letterSpacing !== '0px') styles['letter-spacing'] = letterSpacing;
+
+                    const color = v('color');
+                    if (color) styles.color = color;
+
+                    const bg = v('background-color');
+                    if (bg && bg !== 'rgba(0, 0, 0, 0)' && bg !== 'transparent') styles['background-color'] = bg;
+
+                    const radius = v('border-radius');
+                    if (radius && radius !== '0px') styles['border-radius'] = radius;
+
+                    if (isFlex || isGrid) {{
+                        styles.display = display;
+                        const dir = v('flex-direction');
+                        if (dir && dir !== 'row') styles['flex-direction'] = dir;
+                        const align = v('align-items');
+                        if (align && align !== 'normal') styles['align-items'] = align;
+                        const justify = v('justify-content');
+                        if (justify && justify !== 'normal') styles['justify-content'] = justify;
+                    }}
+
+                    return {{ selector: sel, tag, text, styles }};
+                }}""")
+
+                if result and result.get("styles"):
+                    annotations.append({
+                        "index":    r["index"],
+                        "region":   {"x1": r["x1"], "y1": r["y1"], "x2": r["x2"], "y2": r["y2"]},
+                        "selector": result["selector"],
+                        "tag":      result["tag"],
+                        "text":     result.get("text") or "",
+                        "styles":   result["styles"],
+                    })
+        finally:
+            await page.close()
+            await context.close()
+
+        return annotations
+
     # ── Helpers ─────────────────────────────────────────────────────────────────
 
     async def _dismiss_overlays(self, page: Page):

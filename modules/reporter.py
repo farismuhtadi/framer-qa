@@ -533,6 +533,78 @@ def _render_html(*, site_url, date_str, total_pages, total_pass, total_warn,
     text-transform: uppercase;
   }}
 
+  /* ── CSS Annotations ── */
+  .annotations {{
+    margin-top: 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }}
+  .ann-title {{
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .5px;
+    color: var(--muted);
+    margin-bottom: 2px;
+  }}
+  .ann-item {{
+    display: flex;
+    gap: 10px;
+    align-items: flex-start;
+    background: var(--subtle);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 10px 14px;
+    font-size: 12.5px;
+  }}
+  .ann-badge {{
+    flex-shrink: 0;
+    width: 22px; height: 22px;
+    border-radius: 50%;
+    background: #fb923c;
+    color: #fff;
+    font-weight: 700;
+    font-size: 11px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-top: 1px;
+  }}
+  .ann-body {{ flex: 1; min-width: 0; }}
+  .ann-selector {{
+    font-family: 'SFMono-Regular', 'Consolas', monospace;
+    font-size: 12px;
+    color: var(--accent);
+    font-weight: 600;
+    margin-bottom: 4px;
+  }}
+  .ann-text {{
+    color: var(--muted);
+    font-size: 11.5px;
+    margin-bottom: 5px;
+    font-style: italic;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }}
+  .ann-props {{
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+  }}
+  .ann-prop {{
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 2px 7px;
+    font-size: 11px;
+    font-family: 'SFMono-Regular', 'Consolas', monospace;
+    color: var(--text);
+    white-space: nowrap;
+  }}
+  .ann-prop span {{ color: var(--muted); }}
+
   /* ── Footer ── */
   .footer {{
     border-top: 1px solid var(--border);
@@ -810,7 +882,7 @@ def _render_page(result: dict, viewports: list[dict], output_dir: str) -> str:
         vp     = vp_result["viewport"]
         active = "active" if i == 0 else ""
         vp_tabs += f'<button class="vp-tab {active}" data-group="{group_id}" data-vp="{i}">{vp["name"]} <span style="color:var(--muted);font-weight:400">({vp["width"]}px)</span></button>\n'
-        vp_panels += _render_vp_panel(vp_result, i, group_id, safe_id, active, output_dir)
+        vp_panels += _render_vp_panel(vp_result, i, group_id, safe_id, active, output_dir, vp_result.get("annotations") or [])
 
     # SEO mini-summary
     fail_count = seo["fail_count"]
@@ -848,7 +920,7 @@ def _render_page(result: dict, viewports: list[dict], output_dir: str) -> str:
 </div>"""
 
 
-def _render_vp_panel(vp_result: dict, idx: int, group_id: str, safe_id: str, active: str, output_dir: str) -> str:
+def _render_vp_panel(vp_result: dict, idx: int, group_id: str, safe_id: str, active: str, output_dir: str, annotations: list = []) -> str:
     vp          = vp_result["viewport"]
     live_path   = vp_result.get("live_path")
     figma_path  = vp_result.get("figma_path")
@@ -912,7 +984,8 @@ def _render_vp_panel(vp_result: dict, idx: int, group_id: str, safe_id: str, act
 
     if has_diff:
         img_tabs  += f'<button class="img-tab" data-group="{view_group}" data-view="diff">Diff</button>\n'
-        img_panels += f'<div class="img-panel" data-group="{view_group}" data-view="diff"><img class="screenshot" src="{diff_rel}" alt="Pixel diff" loading="lazy"></div>\n'
+        annotations_html = _render_annotations(annotations)
+        img_panels += f'<div class="img-panel" data-group="{view_group}" data-view="diff"><img class="screenshot" src="{diff_rel}" alt="Pixel diff" loading="lazy">{annotations_html}</div>\n'
 
     no_figma_msg = ""
     if not has_figma:
@@ -927,6 +1000,40 @@ def _render_vp_panel(vp_result: dict, idx: int, group_id: str, safe_id: str, act
   </div>
   {no_figma_msg}
 </div>"""
+
+
+# ── CSS Annotations ───────────────────────────────────────────────────────────
+
+def _render_annotations(annotations: list) -> str:
+    """Renders the numbered CSS annotation list shown below the diff image."""
+    if not annotations:
+        return ""
+
+    items = ""
+    for a in annotations:
+        selector = _esc(a.get("selector") or "?")
+        text     = a.get("text") or ""
+        styles   = a.get("styles") or {}
+        num      = a.get("index", "?")
+
+        text_html = f'<div class="ann-text">"{_esc(text[:60])}"</div>' if text else ""
+
+        props_html = "".join(
+            f'<span class="ann-prop"><span>{_esc(k)}: </span>{_esc(str(v))}</span>'
+            for k, v in styles.items()
+        )
+
+        items += f"""
+<div class="ann-item">
+  <div class="ann-badge">{num}</div>
+  <div class="ann-body">
+    <div class="ann-selector">{selector}</div>
+    {text_html}
+    <div class="ann-props">{props_html}</div>
+  </div>
+</div>"""
+
+    return f'<div class="annotations"><div class="ann-title">🔬 Changed regions — live CSS</div>{items}</div>'
 
 
 # ── Site SEO section ──────────────────────────────────────────────────────────

@@ -267,6 +267,7 @@ async def _run_qa(job: "Job") -> str | None:
                 # Figma comparison for this viewport
                 figma_path = diff_path = None
                 similarity = None
+                annotations = []
                 if has_figma and live_path:
                     frames_for_page = figma_cfg["page_frames"].get(path, {})
                     node_id = frames_for_page.get(vp["name"])
@@ -279,21 +280,33 @@ async def _run_qa(job: "Job") -> str | None:
                                 diff_path  = os.path.join(shots_dir, f"{safe_name(path)}_{vp['name'].lower()}_diff.png")
                                 with open(figma_path, "wb") as f:
                                     f.write(figma_bytes)
-                                similarity = compare_images(
+                                similarity, regions = compare_images(
                                     live_path, figma_path, diff_path,
                                     threshold=config.get("diff_threshold", 10),
                                 )
                                 icon = "✅" if similarity >= 95 else "⚠️ "
                                 print(f"   {icon} Visual match: {similarity:.1f}%")
+
+                                # CSS annotation — inspect DOM at each changed region
+                                if regions:
+                                    print(f"   🔬 Extracting CSS at {len(regions)} changed region(s)...")
+                                    try:
+                                        annotations = await taker.extract_styles_at_regions(page_url, vp, regions)
+                                        print(f"   ✅ Got styles for {len(annotations)} region(s)")
+                                    except Exception as ann_e:
+                                        print(f"   ⚠️  CSS extraction failed: {ann_e}")
                         except Exception as e:
                             print(f"   ⚠️  Figma comparison failed: {e}")
                     else:
                         print(f"   ℹ️  No Figma frame mapped for '{path}'")
 
                 vp_results.append({
-                    "viewport": vp, "live_path": live_path,
-                    "figma_path": figma_path, "diff_path": diff_path,
-                    "similarity": similarity,
+                    "viewport":    vp,
+                    "live_path":   live_path,
+                    "figma_path":  figma_path,
+                    "diff_path":   diff_path,
+                    "similarity":  similarity,
+                    "annotations": annotations,
                 })
 
             if seo is None:

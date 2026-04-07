@@ -71,6 +71,7 @@ class Job:
         self.logs: list[str] = []
         self.progress = 0.0          # 0.0 – 1.0
         self.report_url: str | None = None
+        self.favicon_url: str | None = None
         self.error: str | None = None
         self.created_at = time.time()
         self._lock = threading.Lock()
@@ -272,7 +273,10 @@ async def _run_qa(job: "Job") -> str | None:
                     frames_for_page = figma_cfg["page_frames"].get(path, {})
                     node_id = frames_for_page.get(vp["name"])
                     if node_id:
-                        print(f"   🎨 Fetching Figma frame {node_id}...")
+                        frame_names = config.get("frame_names", {})
+                        frame_label = frame_names.get(node_id, "")
+                        frame_display = f"'{frame_label}' ({node_id})" if frame_label else node_id
+                        print(f"   🎨 Fetching Figma frame {frame_display}...")
                         try:
                             figma_bytes = figma_client.export_frame(node_id, vp["width"])
                             if figma_bytes:
@@ -287,8 +291,9 @@ async def _run_qa(job: "Job") -> str | None:
                                 icon = "✅" if similarity >= 95 else "⚠️ "
                                 print(f"   {icon} Visual match: {similarity:.1f}%")
 
-                                # CSS annotation — inspect DOM at each changed region
-                                if regions:
+                                # CSS annotation — inspect DOM at changed regions
+                                # (can be skipped via skip_css_extract option)
+                                if regions and not config.get("skip_css_extract", False):
                                     print(f"   🔬 Extracting CSS at {len(regions)} changed region(s)...")
                                     try:
                                         annotations = await taker.extract_styles_at_regions(page_url, vp, regions)
@@ -314,11 +319,110 @@ async def _run_qa(job: "Job") -> str | None:
 
             results.append({"url": page_url, "path": path, "seo": seo, "viewports": vp_results})
 
+    # Post-processing: flag duplicate meta titles/descriptions across pages
+    _flag_duplicate_meta(results)
+
     print(f"\n{'═'*55}")
     print("📊 Generating HTML report...")
     report_path = generate_report(results, config, output_dir, timestamp, site_seo=site_seo)
     print(f"✅ Done! Report ready.")
+
+    # Extract favicon from site SEO for history thumbnails
+    if site_seo:
+        job.favicon_url = site_seo.get("raw", {}).get("favicon_href")
+
+    # Persist job metadata so history survives server restarts
+    _save_job_meta(job, f"/reports/{job.id}/report.html")
+
     return report_path
+
+
+# ── Duplicate meta detection ─────────────────────────────────────────────────
+
+def _flag_duplicate_meta(results: list):
+    """
+    After all pages are scanned, flags pages that share identical
+    meta titles or meta descriptions with other pages.
+    Mutates each result's seo["checks"] list in place.
+    """
+    title_map: dict[str, list[str]] = {}
+    desc_map:  dict[str, list[str]] = {}
+
+    for r in results:
+        seo_raw = (r.get("seo") or {}).get("raw") or {}
+        path    = r.get("path", "?")
+        title   = seo_raw.get("title")
+        desc    = seo_raw.get("meta_description")
+        if title:
+            title_map.setdefault(title, []).append(path)
+        if desc:
+            desc_map.setdefault(desc, []).append(path)
+
+    for r in results:
+        seo     = r.get("seo") or {}
+        seo_raw = seo.get("raw") or {}
+        path    = r.get("path", "?")
+        title   = seo_raw.get("title")
+        desc    = seo_raw.get("meta_description")
+
+        if title and len(title_map.get(title, [])) > 1:
+            dupes = [p for p in title_map[title] if p != path]
+            seo.setdefault("checks", []).append({
+                "name":   "Duplicate Meta Title",
+                "status": "warn",
+                "detail": f"Same title also used on: {', '.join(dupes[:3])}{'…' if len(dupes) > 3 else ''}",
+                "value":  title,
+            })
+            seo["warn_count"] = seo.get("warn_count", 0) + 1
+
+        if desc and len(desc_map.get(desc, [])) > 1:
+            dupes = [p for p in desc_map[desc] if p != path]
+            seo.setdefault("checks", []).append({
+                "name":   "Duplicate Meta Description",
+                "status": "warn",
+                "detail": f"Same description also used on: {', '.join(dupes[:3])}{'…' if len(dupes) > 3 else ''}",
+                "value":  desc,
+            })
+            seo["warn_count"] = seo.get("warn_count", 0) + 1
+
+
+# ── History persistence ───────────────────────────────────────────────────────
+
+def _save_job_meta(job: "Job", report_url: str):
+    """Saves job metadata to disk so history survives server restarts."""
+    try:
+        meta = {
+            "id":          job.id,
+            "site_url":    job.config["site_url"],
+            "status":      job.status,
+            "created_at":  job.created_at,
+            "report_url":  report_url,
+            "favicon_url": job.favicon_url,
+            "config":      job.config,   # stored for re-run
+        }
+        job_dir = os.path.join(REPORTS_DIR, job.id)
+        os.makedirs(job_dir, exist_ok=True)
+        with open(os.path.join(job_dir, "meta.json"), "w") as f:
+            json.dump(meta, f)
+    except Exception as e:
+        _orig_print(f"[History] Could not save meta for {job.id}: {e}")
+
+
+def _load_disk_jobs() -> list[dict]:
+    """Scans REPORTS_DIR for persisted meta.json files."""
+    disk_jobs = []
+    try:
+        for job_id in os.listdir(REPORTS_DIR):
+            meta_path = os.path.join(REPORTS_DIR, job_id, "meta.json")
+            if os.path.isfile(meta_path):
+                try:
+                    with open(meta_path) as f:
+                        disk_jobs.append(json.load(f))
+                except Exception:
+                    pass
+    except Exception:
+        pass
+    return disk_jobs
 
 
 # ── Cleanup ───────────────────────────────────────────────────────────────────
@@ -386,6 +490,9 @@ def api_run():
             {"name": "Mobile",  "width": 375,  "height": 812},
         ]
 
+    # frame_names: dict mapping node_id → display name, used for readable log messages
+    frame_names = data.get("frame_names") or {}
+
     config = {
         "site_url": site_url,
         "figma": {
@@ -393,11 +500,13 @@ def api_run():
             "file_id":     figma_file_id,
             "page_frames": page_frames,
         },
-        "viewports":      viewports,
-        "diff_threshold": int(data.get("diff_threshold", 10)),
-        "timeout_ms":     int(data.get("timeout_ms", 15000)),
-        "seo_only":       bool(data.get("seo_only", False)),
-        "output_dir":     REPORTS_DIR,
+        "viewports":         viewports,
+        "diff_threshold":    int(data.get("diff_threshold", 10)),
+        "timeout_ms":        int(data.get("timeout_ms", 15000)),
+        "seo_only":          bool(data.get("seo_only", False)),
+        "skip_css_extract":  bool(data.get("skip_css_extract", False)),
+        "frame_names":       {str(k): str(v) for k, v in frame_names.items()},
+        "output_dir":        REPORTS_DIR,
     }
 
     job_id = uuid.uuid4().hex[:10]
@@ -452,10 +561,11 @@ def api_figma_frames():
     if not token or not file_id:
         return jsonify({"error": "api_token and file_id are required"}), 400
 
+    only_dev_ready = bool(data.get("only_dev_ready", False))
     try:
         from modules.figma import FigmaClient
         client = FigmaClient(token, file_id)
-        frames = client.list_frames()
+        frames = client.list_frames(only_dev_ready=only_dev_ready)
         return jsonify({"frames": frames})
     except Exception as e:
         return jsonify({"error": str(e)}), 500
@@ -479,17 +589,75 @@ def serve_screenshot(job_id: str, filename: str):
 
 @app.route("/api/jobs")
 def api_jobs():
-    """Returns a list of recent jobs (most recent first)."""
+    """Returns a list of recent jobs (most recent first), including persisted history."""
     with _jobs_lock:
-        jobs = list(_jobs.values())
-    jobs.sort(key=lambda j: j.created_at, reverse=True)
-    return jsonify([{
-        "id":         j.id,
-        "status":     j.status,
-        "site_url":   j.config["site_url"],
-        "created_at": j.created_at,
-        "report_url": j.report_url,
-    } for j in jobs[:20]])
+        mem_jobs = list(_jobs.values())
+    mem_ids = {j.id for j in mem_jobs}
+
+    # Load persisted jobs that are no longer in memory
+    disk_jobs = [d for d in _load_disk_jobs() if d["id"] not in mem_ids]
+
+    combined = [{
+        "id":          j.id,
+        "status":      j.status,
+        "site_url":    j.config["site_url"],
+        "created_at":  j.created_at,
+        "report_url":  j.report_url,
+        "favicon_url": j.favicon_url,
+    } for j in mem_jobs] + disk_jobs
+
+    combined.sort(key=lambda j: j["created_at"], reverse=True)
+    return jsonify(combined[:50])
+
+
+@app.route("/api/pages")
+def api_pages():
+    """Discovers pages from a site's sitemap. Used to populate path dropdowns."""
+    url = (request.args.get("url") or "").strip()
+    if not url or not url.startswith("http"):
+        return jsonify({"error": "Invalid URL"}), 400
+    try:
+        from modules.crawler import get_pages_from_sitemap
+        site_url = url.rstrip("/")
+        pages    = get_pages_from_sitemap(site_url)
+        paths    = []
+        for p in pages:
+            path = p.replace(site_url, "").strip().rstrip("/") or "/"
+            if path not in paths:
+                paths.append(path)
+        return jsonify({"paths": paths})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/rerun/<job_id>", methods=["POST"])
+def api_rerun(job_id: str):
+    """Re-runs a completed job using its saved config."""
+    if _running_job_count() >= MAX_CONCURRENT_JOBS:
+        return jsonify({"error": f"Max concurrent jobs ({MAX_CONCURRENT_JOBS}) reached."}), 429
+
+    meta_path = os.path.join(REPORTS_DIR, job_id, "meta.json")
+    if not os.path.exists(meta_path):
+        return jsonify({"error": "Job not found"}), 404
+
+    try:
+        with open(meta_path) as f:
+            meta = json.load(f)
+    except Exception:
+        return jsonify({"error": "Could not read job metadata"}), 500
+
+    config = meta.get("config")
+    if not config:
+        return jsonify({"error": "No config saved for this job — cannot re-run"}), 400
+
+    new_job_id = uuid.uuid4().hex[:10]
+    new_job    = Job(new_job_id, config)
+    with _jobs_lock:
+        _jobs[new_job_id] = new_job
+
+    thread = threading.Thread(target=_thread_run_job, args=(new_job_id,), daemon=True)
+    thread.start()
+    return jsonify({"job_id": new_job_id})
 
 
 # ── Entry point ───────────────────────────────────────────────────────────────

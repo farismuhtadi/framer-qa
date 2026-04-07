@@ -4,7 +4,23 @@ multiple viewport sizes, and runs SEO checks on loaded pages.
 """
 
 import asyncio
-from playwright.async_api import async_playwright, Browser, BrowserContext, Page
+from playwright.async_api import async_playwright, Browser, BrowserContext, Page, TimeoutError as PlaywrightTimeoutError
+
+
+async def _goto_with_fallback(page: Page, url: str, timeout_ms: int):
+    """
+    Navigate to a URL with networkidle, falling back to 'load' if it times out.
+    This prevents homepages (with many async scripts) from blocking the whole check.
+    """
+    try:
+        await page.goto(url, wait_until="networkidle", timeout=timeout_ms)
+    except PlaywrightTimeoutError:
+        # networkidle never fired — retry with 'load' which fires once the DOM is ready
+        try:
+            await page.goto(url, wait_until="load", timeout=timeout_ms)
+        except PlaywrightTimeoutError:
+            # Last resort: domcontentloaded — at least the HTML is parsed
+            await page.goto(url, wait_until="domcontentloaded", timeout=timeout_ms)
 
 
 class ScreenshotTaker:
@@ -73,7 +89,7 @@ class ScreenshotTaker:
         )
         page = await context.new_page()
         try:
-            await page.goto(url, wait_until="networkidle", timeout=self.timeout_ms)
+            await _goto_with_fallback(page, url, self.timeout_ms)
             await self._dismiss_overlays(page)
             await asyncio.sleep(0.5)
             png_bytes = await page.screenshot(full_page=True, type="png")
@@ -97,7 +113,7 @@ class ScreenshotTaker:
         )
         page = await context.new_page()
         try:
-            await page.goto(url, wait_until="networkidle", timeout=self.timeout_ms)
+            await _goto_with_fallback(page, url, self.timeout_ms)
             seo = await check_seo(page, url)
             await self._dismiss_overlays(page)
             await asyncio.sleep(0.5)
@@ -122,7 +138,7 @@ class ScreenshotTaker:
         )
         page = await context.new_page()
         try:
-            await page.goto(url, wait_until="networkidle", timeout=self.timeout_ms)
+            await _goto_with_fallback(page, url, self.timeout_ms)
             result = await check_site_seo(page, url)
         finally:
             await page.close()
@@ -142,7 +158,7 @@ class ScreenshotTaker:
         )
         page = await context.new_page()
         try:
-            await page.goto(url, wait_until="networkidle", timeout=self.timeout_ms)
+            await _goto_with_fallback(page, url, self.timeout_ms)
             result = await check_seo(page, url)
         finally:
             await page.close()
@@ -167,7 +183,7 @@ class ScreenshotTaker:
         )
         page = await context.new_page()
         try:
-            await page.goto(url, wait_until="networkidle", timeout=self.timeout_ms)
+            await _goto_with_fallback(page, url, self.timeout_ms)
 
             annotations = []
             for r in regions:

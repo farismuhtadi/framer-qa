@@ -46,6 +46,40 @@ _EXTRACT_JS = """() => {
             } catch { return null; }
         })
         .filter(Boolean);
+
+    // Broken images — fully loaded but zero dimensions
+    const brokenImages = Array.from(document.querySelectorAll('img'))
+        .filter(img => img.complete && (img.naturalWidth === 0 || img.naturalHeight === 0) && img.src && !img.src.startsWith('data:'))
+        .map(img => img.src);
+
+    // Placeholder text — lorem ipsum variants
+    const bodyText = (document.body && document.body.innerText) || '';
+    const placeholderMatches = [];
+    const placeholderPatterns = [
+        /lorem\s+ipsum/i,
+        /dolor\s+sit\s+amet/i,
+        /\[placeholder\]/i,
+        /\[your\s+(?:text|content|title|name)\]/i,
+        /placeholder\s+text/i,
+        /dummy\s+text/i,
+        /sample\s+text/i,
+    ];
+    placeholderPatterns.forEach(re => {
+        const m = bodyText.match(re);
+        if (m) placeholderMatches.push(m[0]);
+    });
+
+    // Page performance timing
+    const navEntry = performance.getEntriesByType('navigation')[0];
+    const paintEntries = performance.getEntriesByType('paint');
+    const fcpEntry = paintEntries.find(p => p.name === 'first-contentful-paint');
+    const perf = navEntry ? {
+        ttfb:               Math.round(navEntry.responseStart - navEntry.requestStart),
+        dom_content_loaded: Math.round(navEntry.domContentLoadedEventEnd - navEntry.startTime),
+        load_time:          Math.round(navEntry.loadEventEnd - navEntry.startTime),
+        fcp:                fcpEntry ? Math.round(fcpEntry.startTime) : null,
+    } : null;
+
     return {
         title:               document.title || null,
         meta_description:    get('meta[name="description"]'),
@@ -64,6 +98,9 @@ _EXTRACT_JS = """() => {
         robots:              get('meta[name="robots"]'),
         h1_texts:            h1Els.map(el => el.innerText.trim()).filter(Boolean),
         internal_links:      [...new Set(internalLinks)],
+        broken_images:       [...new Set(brokenImages)],
+        placeholder_matches: placeholderMatches,
+        perf:                perf,
     };
 }"""
 
@@ -158,13 +195,14 @@ def _score_site_checks(raw: dict, favicon_ok, og_image_ok) -> list[dict]:
 
 # ── Page-level check (run per page) ──────────────────────────────────────────
 
-async def check_seo(page: Page, url: str) -> dict:
+async def check_seo(page: Page, url: str, console_errors: list = None) -> dict:
     """
     Checks signals that should be unique per page:
-    meta title, meta description, canonical URL, robots.
+    meta title, meta description, canonical URL, robots,
+    broken images, placeholder text, and JS console errors.
     """
     raw = await page.evaluate(_EXTRACT_JS)
-    checks = _score_page_checks(raw, url)
+    checks = _score_page_checks(raw, url, console_errors or [])
 
     return {
         "url":        url,
@@ -176,7 +214,7 @@ async def check_seo(page: Page, url: str) -> dict:
     }
 
 
-def _score_page_checks(raw: dict, page_url: str) -> list[dict]:
+def _score_page_checks(raw: dict, page_url: str, console_errors: list = None) -> list[dict]:
     checks = []
 
     # Meta Title
@@ -217,14 +255,10 @@ def _score_page_checks(raw: dict, page_url: str) -> list[dict]:
     else:
         checks.append(_check("Canonical URL", "pass", canonical, canonical))
 
-    # Robots
+    # Robots — only surface when something is actually blocking indexing
     robots = raw.get("robots")
     if robots and ("noindex" in robots.lower() or "nofollow" in robots.lower()):
         checks.append(_check("Robots", "warn", f"Page may be excluded from search: {robots}", robots))
-    elif robots:
-        checks.append(_check("Robots", "pass", robots, robots))
-    else:
-        checks.append(_check("Robots", "pass", "Not set (defaults to index, follow)", None))
 
     # Broken internal links
     internal_links = raw.get("internal_links") or []
@@ -238,6 +272,63 @@ def _score_page_checks(raw: dict, page_url: str) -> list[dict]:
             checks.append(_check("Broken Links", "pass", f"{len(internal_links)} internal link{'s' if len(internal_links) != 1 else ''} checked", None))
     else:
         checks.append(_check("Broken Links", "pass", "No internal links found", None))
+
+    # Broken images
+    broken_imgs = raw.get("broken_images") or []
+    if broken_imgs:
+        checks.append(_check("Broken Images", "fail",
+                             f"{len(broken_imgs)} broken image{'s' if len(broken_imgs) != 1 else ''}: {', '.join(broken_imgs[:2])}{'…' if len(broken_imgs) > 2 else ''}",
+                             "\n".join(broken_imgs)))
+    else:
+        checks.append(_check("Broken Images", "pass", "All images loaded successfully", None))
+
+    # Placeholder content
+    placeholders = raw.get("placeholder_matches") or []
+    if placeholders:
+        checks.append(_check("Placeholder Text", "fail",
+                             f"Found placeholder content: {', '.join(set(placeholders))}",
+                             ", ".join(set(placeholders))))
+    else:
+        checks.append(_check("Placeholder Text", "pass", "No placeholder text found", None))
+
+    # Console errors
+    errs = [e for e in (console_errors or []) if e]
+    if errs:
+        preview = errs[0][:80] + ("…" if len(errs[0]) > 80 else "")
+        checks.append(_check("Console Errors", "fail",
+                             f"{len(errs)} JS error{'s' if len(errs) != 1 else ''}: {preview}",
+                             "\n".join(errs[:10])))
+    else:
+        checks.append(_check("Console Errors", "pass", "No console errors detected", None))
+
+    # Page speed (from Navigation Timing API — measured in the browser)
+    perf = raw.get("perf")
+    if perf and isinstance(perf, dict):
+        load_ms = perf.get("load_time")
+        ttfb_ms = perf.get("ttfb")
+        fcp_ms  = perf.get("fcp")
+        parts   = []
+
+        if load_ms is not None:
+            parts.append(f"loaded in {load_ms}ms")
+        if fcp_ms is not None:
+            parts.append(f"first paint {fcp_ms}ms")
+        if ttfb_ms is not None:
+            parts.append(f"server {ttfb_ms}ms")
+        metrics = " · ".join(parts) if parts else "Measured"
+
+        # Score: fail if load > 5s or TTFB > 1.2s; warn if load > 3s or TTFB > 0.6s
+        if (load_ms is not None and load_ms > 5000) or (ttfb_ms is not None and ttfb_ms > 1200):
+            detail = f"Slow — {metrics}"
+            checks.append(_check("Page Speed", "fail", detail, None))
+        elif (load_ms is not None and load_ms > 3000) or (ttfb_ms is not None and ttfb_ms > 600):
+            detail = f"Could be faster — {metrics}"
+            checks.append(_check("Page Speed", "warn", detail, None))
+        else:
+            detail = f"Fast — {metrics}"
+            checks.append(_check("Page Speed", "pass", detail, None))
+    else:
+        checks.append(_check("Page Speed", "warn", "Timing data unavailable", None))
 
     return checks
 

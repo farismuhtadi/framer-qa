@@ -14,6 +14,7 @@ How to find node IDs in Figma:
 
 import requests
 import io
+import time
 from PIL import Image
 
 
@@ -30,17 +31,16 @@ class FigmaClient:
             "User-Agent": "FramerQA/1.0",
         })
 
-    def export_frame(self, node_id: str, target_width: int, scale: float = 2.0) -> bytes | None:
+    def export_frame(self, node_id: str, target_width: int, scale: float = 2.0,
+                     max_retries: int = 3) -> bytes | None:
         """
         Exports a Figma frame as a PNG at the given scale.
-        Returns PNG bytes, or None on failure.
+        Returns PNG bytes, or None after max_retries failures.
 
         The exported image is scaled so its width matches target_width,
         preserving aspect ratio — this makes pixel diff more meaningful.
         """
-        # Figma uses colon-separated node IDs in API calls
         node_id_api = node_id.replace("-", ":")
-
         url = f"{FIGMA_API_BASE}/images/{self.file_id}"
         params = {
             "ids":    node_id_api,
@@ -48,51 +48,55 @@ class FigmaClient:
             "scale":  scale,
         }
 
-        try:
-            resp = self.session.get(url, params=params, timeout=30)
-            resp.raise_for_status()
-            data = resp.json()
-        except Exception as e:
-            print(f"   ❌ Figma API error for node {node_id}: {e}")
-            return None
+        last_error = None
+        for attempt in range(1, max_retries + 1):
+            try:
+                resp = self.session.get(url, params=params, timeout=30)
+                resp.raise_for_status()
+                data = resp.json()
 
-        if data.get("err"):
-            print(f"   ❌ Figma export error: {data['err']}")
-            return None
+                if data.get("err"):
+                    raise RuntimeError(f"Figma export error: {data['err']}")
 
-        image_url = data.get("images", {}).get(node_id_api)
-        if not image_url:
-            print(f"   ❌ No image URL returned for node {node_id}")
-            return None
+                image_url = data.get("images", {}).get(node_id_api)
+                if not image_url:
+                    raise RuntimeError(f"No image URL returned for node {node_id}")
 
-        # Download the exported image
-        try:
-            img_resp = requests.get(image_url, timeout=30)
-            img_resp.raise_for_status()
-            png_bytes = img_resp.content
-        except Exception as e:
-            print(f"   ❌ Failed to download Figma image: {e}")
-            return None
+                img_resp = requests.get(image_url, timeout=30)
+                img_resp.raise_for_status()
+                png_bytes = img_resp.content
 
-        # Resize to match target viewport width
-        try:
-            img = Image.open(io.BytesIO(png_bytes))
-            orig_w, orig_h = img.size
-            if orig_w != target_width:
-                ratio    = target_width / orig_w
-                new_h    = int(orig_h * ratio)
-                img      = img.resize((target_width, new_h), Image.LANCZOS)
-                buf      = io.BytesIO()
-                img.save(buf, format="PNG")
-                png_bytes = buf.getvalue()
-        except Exception as e:
-            print(f"   ⚠️  Image resize failed (using original): {e}")
+                # Resize to match target viewport width
+                try:
+                    img = Image.open(io.BytesIO(png_bytes))
+                    orig_w, orig_h = img.size
+                    if orig_w != target_width:
+                        ratio    = target_width / orig_w
+                        new_h    = int(orig_h * ratio)
+                        img      = img.resize((target_width, new_h), Image.LANCZOS)
+                        buf      = io.BytesIO()
+                        img.save(buf, format="PNG")
+                        png_bytes = buf.getvalue()
+                except Exception as resize_e:
+                    print(f"   ⚠️  Image resize failed (using original): {resize_e}")
 
-        return png_bytes
+                return png_bytes  # success
 
-    def list_frames(self) -> list[dict]:
+            except Exception as e:
+                last_error = e
+                if attempt < max_retries:
+                    print(f"   ⚠️  Figma error (attempt {attempt}/{max_retries}): {e} — retrying in {attempt * 2}s…")
+                    time.sleep(attempt * 2)
+                else:
+                    print(f"   ❌ Figma failed after {max_retries} attempts: {e}")
+                    print(f"   ⏭️  Skipping this frame — continuing with the rest of the scan")
+
+        return None
+
+    def list_frames(self, only_dev_ready: bool = False) -> list[dict]:
         """
         Returns all frames in the Figma file, including frames inside Sections.
+        If only_dev_ready=True, only returns frames marked "Ready for Dev" in Figma.
         Useful for discovering node IDs without opening the browser.
         """
         # depth=3: document → pages → top-level nodes (frames/sections) → section children
@@ -113,14 +117,18 @@ class FigmaClient:
             for child in children:
                 node_type = child.get("type")
                 if node_type == "FRAME":
+                    is_dev_ready = (child.get("devStatus") or {}).get("type") == "READY_FOR_DEV"
+                    if only_dev_ready and not is_dev_ready:
+                        continue
                     label = child["name"]
                     if section_name:
                         label = f"{section_name} / {label}"
                     frames.append({
-                        "name":    label,
-                        "node_id": child["id"],
-                        "page":    page_name,
-                        "section": section_name or "",
+                        "name":      label,
+                        "node_id":   child["id"],
+                        "page":      page_name,
+                        "section":   section_name or "",
+                        "dev_ready": is_dev_ready,
                     })
                 elif node_type == "SECTION":
                     # Recurse into sections to find nested frames

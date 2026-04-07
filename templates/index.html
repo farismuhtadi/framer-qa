@@ -4,36 +4,40 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Framer QA</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
 /* ── Reset & Variables ───────────────────────────────────────────────────── */
 :root {
-  --bg:        #f0f2f5;
-  --surface:   #fafaf8;
-  --surface2:  #f4f4f2;
-  --border:    #e5e7eb;
-  --border2:   #d1d5db;
-  --text:      #111827;
-  --muted:     #6b7280;
-  --muted2:    #374151;
-  --pass:      #10b981;
-  --warn:      #f59e0b;
-  --fail:      #ef4444;
-  --accent:    #6366f1;
-  --accent-h:  #4f46e5;
-  --accent-light: #eef2ff;
+  --bg:        #eaecf0;
+  --surface:   #ffffff;
+  --surface2:  #f9fafb;
+  --border:    #e4e7ec;
+  --border2:   #d0d5dd;
+  --text:      #101828;
+  --muted:     #667085;
+  --muted2:    #344054;
+  --pass:      #12b76a;
+  --warn:      #f79009;
+  --fail:      #f04438;
+  --accent:    #101828;
+  --accent-h:  #1d2939;
+  --accent-light: #f2f4f7;
   --radius:    12px;
   --radius-sm: 8px;
-  --shadow:    0 4px 16px rgba(0,0,0,.08), 0 1px 4px rgba(0,0,0,.04);
-  --shadow-sm: 0 1px 3px rgba(0,0,0,.06), 0 1px 2px rgba(0,0,0,.04);
+  --shadow:    0 4px 16px rgba(16,24,40,.08), 0 1px 4px rgba(16,24,40,.04);
+  --shadow-sm: 0 1px 3px rgba(16,24,40,.06), 0 1px 2px rgba(16,24,40,.04);
 }
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 body {
-  font-family: -apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', system-ui, sans-serif;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
   background: var(--bg);
   color: var(--text);
   font-size: 14px;
   line-height: 1.6;
   min-height: 100vh;
+  -webkit-font-smoothing: antialiased;
 }
 a { color: var(--accent); text-decoration: none; }
 a:hover { text-decoration: underline; }
@@ -115,7 +119,7 @@ input[type=text], input[type=url], input[type=number], input[type=password] {
   transition: border-color .15s, box-shadow .15s;
   outline: none;
 }
-input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(99,102,241,.12); }
+input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(16,24,40,.1); }
 input::placeholder { color: var(--muted); }
 input[type=password] { font-family: monospace; letter-spacing: .05em; }
 
@@ -210,7 +214,7 @@ input[type=password] { font-family: monospace; letter-spacing: .05em; }
 /* ── Project section card ────────────────────────────────────────────────── */
 .project-section {
   background: var(--accent-light);
-  border: 1px solid #c7d2fe;
+  border: 1px solid var(--border);
   border-radius: var(--radius-sm);
   padding: 14px;
 }
@@ -243,7 +247,7 @@ input[type=password] { font-family: monospace; letter-spacing: .05em; }
 .extracted-hint {
   display: none;
   font-size: 11px;
-  color: #059669;
+  color: var(--pass);
   line-height: 1.5;
 }
 .extracted-hint.visible { display: block; }
@@ -253,7 +257,7 @@ input[type=password] { font-family: monospace; letter-spacing: .05em; }
   padding: 1px 5px;
   border-radius: 4px;
   font-size: 11px;
-  color: #059669;
+  color: var(--pass);
 }
 
 /* ── Figma frames ────────────────────────────────────────────────────────── */
@@ -270,7 +274,7 @@ input[type=password] { font-family: monospace; letter-spacing: .05em; }
 .fetch-frames-btn:hover { border-color: var(--accent); color: var(--accent); background: var(--accent-light); }
 .fetch-frames-btn:disabled { opacity: .5; cursor: not-allowed; }
 
-.frames-list {
+.frames-list-UNUSED {
   background: var(--surface);
   border: 1px solid var(--border2);
   border-radius: var(--radius-sm);
@@ -390,10 +394,10 @@ input[type=password] { font-family: monospace; letter-spacing: .05em; }
   border-radius: var(--radius-sm);
   color: #fff; font-weight: 700; font-size: 14px; width: 100%;
   transition: background .15s, transform .1s, box-shadow .15s;
-  box-shadow: 0 2px 8px rgba(99,102,241,.3);
+  box-shadow: 0 2px 8px rgba(16,24,40,.2);
   letter-spacing: -0.2px;
 }
-.run-btn:hover { background: var(--accent-h); box-shadow: 0 4px 12px rgba(99,102,241,.4); }
+.run-btn:hover { background: var(--accent-h); box-shadow: 0 4px 12px rgba(16,24,40,.25); }
 .run-btn:active { transform: scale(.98); }
 .run-btn:disabled { opacity: .5; cursor: not-allowed; transform: none; box-shadow: none; }
 
@@ -402,7 +406,7 @@ input[type=password] { font-family: monospace; letter-spacing: .05em; }
   background: #fef2f2;
   border: 1px solid #fecaca;
   border-radius: var(--radius-sm);
-  padding: 10px 14px; color: #dc2626; font-size: 13px; display: none;
+  padding: 10px 14px; color: #f04438; font-size: 13px; display: none;
 }
 .error-banner.visible { display: block; }
 
@@ -418,7 +422,7 @@ input[type=password] { font-family: monospace; letter-spacing: .05em; }
 }
 .empty-icon { font-size: 48px; opacity: .6; }
 .empty-state h2 { font-size: 18px; color: var(--muted2); font-weight: 600; }
-.empty-state p { font-size: 14px; max-width: 360px; line-height: 1.7; color: var(--muted); }
+.empty-state p { font-size: 14px; max-width: 460px; line-height: 1.7; color: var(--muted); }
 
 /* ── Console ─────────────────────────────────────────────────────────────── */
 .console-header {
@@ -457,7 +461,7 @@ input[type=password] { font-family: monospace; letter-spacing: .05em; }
 .open-report-btn {
   padding: 10px 20px; background: var(--accent); border: none;
   border-radius: var(--radius-sm); color: #fff; font-weight: 600; font-size: 13px;
-  transition: background .15s; box-shadow: 0 2px 6px rgba(99,102,241,.3);
+  transition: background .15s; box-shadow: 0 2px 6px rgba(16,24,40,.2);
 }
 .open-report-btn:hover { background: var(--accent-h); }
 .new-check-btn {
@@ -467,32 +471,7 @@ input[type=password] { font-family: monospace; letter-spacing: .05em; }
 }
 .new-check-btn:hover { border-color: var(--accent); color: var(--accent); background: var(--accent-light); }
 
-/* ── Report view ─────────────────────────────────────────────────────────── */
-.report-toolbar {
-  padding: 10px 20px; border-bottom: 1px solid var(--border);
-  display: flex; align-items: center; gap: 12px; flex-shrink: 0;
-  background: var(--surface);
-}
-.report-url-badge {
-  flex: 1; padding: 6px 12px;
-  background: var(--surface2); border: 1px solid var(--border);
-  border-radius: 6px; color: var(--muted2); font-size: 12px;
-  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-}
-.open-tab-btn {
-  padding: 6px 14px; background: var(--accent); border: none;
-  border-radius: 6px; color: #fff; font-size: 12px; font-weight: 600;
-  white-space: nowrap; transition: background .15s;
-}
-.open-tab-btn:hover { background: var(--accent-h); }
-.back-btn {
-  padding: 6px 14px; background: transparent;
-  border: 1px solid var(--border2); border-radius: 6px;
-  color: var(--muted2); font-size: 12px; transition: all .15s;
-}
-.back-btn:hover { border-color: var(--accent); color: var(--accent); }
-.report-iframe-wrap { flex: 1; overflow: hidden; }
-.report-iframe-wrap iframe { width: 100%; height: 100%; border: none; background: var(--bg); }
+/* ── Report view — opens in new tab, no iframe needed ── */
 
 /* ── History ─────────────────────────────────────────────────────────────── */
 .history-view { padding: 28px; overflow-y: auto; }
@@ -501,26 +480,43 @@ input[type=password] { font-family: monospace; letter-spacing: .05em; }
 .history-list { display: flex; flex-direction: column; gap: 10px; }
 .history-item {
   background: var(--surface); border: 1px solid var(--border);
-  border-radius: var(--radius-sm); padding: 14px 16px;
-  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  border-radius: var(--radius-sm); padding: 12px 14px;
+  display: flex; align-items: center; gap: 10px;
   box-shadow: var(--shadow-sm); transition: box-shadow .15s;
 }
 .history-item:hover { box-shadow: var(--shadow); }
-.history-item-left { overflow: hidden; }
+.history-favicon {
+  width: 20px; height: 20px; border-radius: 4px; flex-shrink: 0;
+  object-fit: contain; background: var(--bg2);
+}
+.history-favicon-placeholder {
+  width: 20px; height: 20px; border-radius: 4px; flex-shrink: 0;
+  background: var(--bg2); display: flex; align-items: center; justify-content: center;
+  font-size: 11px; color: var(--muted);
+}
+.history-item-left { overflow: hidden; flex: 1; min-width: 0; }
 .history-item .site { font-weight: 500; font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--text); }
 .history-item .date { font-size: 11px; color: var(--muted); margin-top: 2px; }
+.history-item-actions { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
 .history-status { padding: 3px 10px; border-radius: 20px; font-size: 11px; font-weight: 600; flex-shrink: 0; }
-.history-status.done    { background: #ecfdf5; color: #059669; }
+.history-status.done    { background: #ecfdf5; color: var(--pass); }
 .history-status.running { background: var(--accent-light); color: var(--accent); }
-.history-status.error   { background: #fef2f2; color: #dc2626; }
+.history-status.error   { background: #fef2f2; color: #f04438; }
 .history-status.queued  { background: #fffbeb; color: #d97706; }
 .history-report-btn {
   padding: 5px 12px; background: var(--accent-light);
-  border: 1px solid #c7d2fe; border-radius: 6px;
+  border: 1px solid var(--border); border-radius: 6px;
   color: var(--accent); font-size: 12px; font-weight: 500;
   white-space: nowrap; transition: all .15s;
 }
 .history-report-btn:hover { background: var(--accent); color: #fff; border-color: var(--accent); }
+.history-rerun-btn {
+  padding: 5px 10px; background: none;
+  border: 1px solid var(--border2); border-radius: 6px;
+  color: var(--muted2); font-size: 12px; font-weight: 500;
+  white-space: nowrap; transition: all .15s;
+}
+.history-rerun-btn:hover { border-color: var(--accent); color: var(--accent); }
 
 @media (max-width: 768px) {
   main { grid-template-columns: 1fr; }
@@ -528,6 +524,44 @@ input[type=password] { font-family: monospace; letter-spacing: .05em; }
   header { padding: 0 16px; }
   .sidebar { padding: 20px 16px; }
 }
+
+/* ── Path picker dropdown ────────────────────────────────────────────────── */
+.path-picker-wrap { position: relative; flex: 1; min-width: 0; }
+.path-picker-dropdown {
+  position: absolute; top: calc(100% + 4px); left: 0; right: 0;
+  background: var(--surface); border: 1px solid var(--border2);
+  border-radius: var(--radius-sm); box-shadow: var(--shadow);
+  z-index: 999; max-height: 180px; overflow-y: auto; display: none;
+}
+.path-picker-dropdown.open { display: block; }
+.path-picker-item {
+  padding: 7px 10px; font-size: 12px; cursor: pointer; font-family: monospace;
+  border-bottom: 1px solid var(--border); transition: background .1s;
+}
+.path-picker-item:last-child { border-bottom: none; }
+.path-picker-item:hover, .path-picker-item.highlighted { background: var(--accent-light); color: var(--accent); }
+.path-picker-empty { padding: 10px; font-size: 12px; color: var(--muted); text-align: center; }
+
+/* ── Frame picker dropdown ───────────────────────────────────────────────── */
+.frame-picker-wrap { position: relative; flex: 1; }
+.frame-picker-dropdown {
+  position: absolute; top: calc(100% + 4px); left: 0; right: 0;
+  background: var(--surface); border: 1px solid var(--border2);
+  border-radius: var(--radius-sm); box-shadow: var(--shadow);
+  z-index: 999; max-height: 220px; overflow-y: auto;
+  display: none;
+}
+.frame-picker-dropdown.open { display: block; }
+.frame-picker-item {
+  padding: 7px 10px; font-size: 12px; cursor: pointer;
+  border-bottom: 1px solid var(--border); transition: background .1s;
+  display: flex; flex-direction: column; gap: 1px;
+}
+.frame-picker-item:last-child { border-bottom: none; }
+.frame-picker-item:hover, .frame-picker-item.highlighted { background: var(--accent-light); }
+.frame-picker-item .fp-name { font-weight: 500; color: var(--text); }
+.frame-picker-item .fp-meta { font-size: 10.5px; color: var(--muted); }
+.frame-picker-empty { padding: 10px; font-size: 12px; color: var(--muted); text-align: center; }
 </style>
 </head>
 <body>
@@ -573,12 +607,23 @@ input[type=password] { font-family: monospace; letter-spacing: .05em; }
 
   <div class="divider"></div>
 
+  <!-- ── Viewports ── -->
+  <div class="form-section">
+    <div class="section-label">Viewports</div>
+    <div class="help-text">Name · Width (px)</div>
+    <div class="viewport-rows" id="viewport-rows"></div>
+    <button class="add-vp-btn" onclick="addViewportRow({}, true)">+ Add viewport</button>
+  </div>
+
+  <div class="divider"></div>
+
   <!-- ── Site ── -->
   <div class="form-section">
     <div class="section-label">Site</div>
     <div class="field">
       <label>Site URL <span class="req">*</span></label>
-      <input type="url" id="site-url" placeholder="https://your-site.framer.website" autocomplete="off">
+      <input type="url" id="site-url" placeholder="https://your-site.framer.website"
+             autocomplete="off" oninput="onSiteUrlChange()">
     </div>
   </div>
 
@@ -591,7 +636,7 @@ input[type=password] { font-family: monospace; letter-spacing: .05em; }
     <div class="field">
       <label>API Token</label>
       <input type="password" id="figma-token" placeholder="figd_••••••••••••••••••••••"
-             autocomplete="off" spellcheck="false">
+             autocomplete="off" spellcheck="false" oninput="resetFetchBtn()">
       <span class="help-text">
         <a href="https://figma.com" target="_blank">figma.com</a> → Account Settings → Security → Personal Access Tokens →
         enable <code>file_content:read</code> and <code>file_metadata:read</code>
@@ -603,36 +648,35 @@ input[type=password] { font-family: monospace; letter-spacing: .05em; }
       <input type="text" id="figma-file-id"
              placeholder="Paste full Figma URL or File ID"
              autocomplete="off" spellcheck="false"
-             oninput="autoExtractFileId(this)">
+             oninput="autoExtractFileId(this); resetFetchBtn()">
       <span class="extracted-hint" id="file-id-hint"></span>
       <span class="help-text">Paste the full Figma URL — the File ID will be extracted automatically.</span>
     </div>
 
-    <button class="fetch-frames-btn" id="fetch-frames-btn" onclick="fetchFrames()">
-      🔎 Fetch frames from Figma file
-    </button>
-    <div class="frames-list" id="frames-list"></div>
+    <div style="display:flex;gap:8px;align-items:center">
+      <button id="fetch-btn" onclick="fetchAll()"
+              style="flex:1;padding:10px 16px;font-size:13px;font-weight:600;
+                     background:var(--accent);color:#fff;border:none;border-radius:8px;
+                     cursor:pointer;transition:opacity .15s;letter-spacing:-0.1px">
+        Fetch
+      </button>
+      <label style="display:flex;align-items:center;gap:6px;font-size:11.5px;color:var(--muted2);cursor:pointer;flex-shrink:0">
+        <input type="checkbox" id="only-dev-ready" style="accent-color:var(--accent)">
+        Ready for Dev only
+      </label>
+    </div>
 
     <div class="form-section" style="gap:8px">
-      <label style="font-size:12px;font-weight:500;color:var(--muted2)">Page → Frame mappings</label>
+      <div>
+        <label style="font-size:12px;font-weight:500;color:var(--muted2)">Page → Frame mappings</label>
+      </div>
       <div class="help-text" style="margin-bottom:4px">
-        Map each page to a Figma frame <strong>per breakpoint</strong>. Click a frame above to add it,
-        or paste a full Figma frame link into any node field — the ID will be extracted automatically.<br><br>
+        Map each page to a Figma frame <strong>per breakpoint</strong>. Click any node field to pick a frame from the list, or paste a full Figma frame link — the ID will be extracted automatically.<br>
         Frame link format: <code>figma.com/design/…?node-id=123-456</code> → becomes <code>123:456</code>
       </div>
       <div class="mappings-table" id="mappings-table"></div>
       <button class="add-row-btn" onclick="addMappingRow()">+ Add page mapping</button>
     </div>
-  </div>
-
-  <div class="divider"></div>
-
-  <!-- ── Viewports ── -->
-  <div class="form-section">
-    <div class="section-label">Viewports</div>
-    <div class="help-text">Name · Width (px)</div>
-    <div class="viewport-rows" id="viewport-rows"></div>
-    <button class="add-vp-btn" onclick="addViewportRow({}, true)">+ Add viewport</button>
   </div>
 
   <div class="divider"></div>
@@ -648,6 +692,17 @@ input[type=password] { font-family: monospace; letter-spacing: .05em; }
       </div>
       <label class="toggle">
         <input type="checkbox" id="seo-only">
+        <span class="toggle-slider"></span>
+      </label>
+    </div>
+
+    <div class="toggle-row">
+      <div class="toggle-label-group">
+        <span class="toggle-label">Skip CSS inspection</span>
+        <span class="toggle-desc">CSS inspection re-loads each page to identify which elements caused visual diffs. Disable to speed up the scan.</span>
+      </div>
+      <label class="toggle">
+        <input type="checkbox" id="skip-css-extract" checked>
         <span class="toggle-slider"></span>
       </label>
     </div>
@@ -709,16 +764,6 @@ input[type=password] { font-family: monospace; letter-spacing: .05em; }
     </div>
   </div>
 
-  <div class="panel-view" id="view-report">
-    <div class="report-toolbar">
-      <button class="back-btn" onclick="backToConsole()">← Console</button>
-      <div class="report-url-badge" id="report-url-badge"></div>
-      <button class="open-tab-btn" onclick="openReportTab()">↗ Open in new tab</button>
-    </div>
-    <div class="report-iframe-wrap">
-      <iframe id="report-iframe" src="about:blank" sandbox="allow-same-origin allow-scripts"></iframe>
-    </div>
-  </div>
 
   <div class="panel-view" id="view-history">
     <div class="history-view">
@@ -800,7 +845,9 @@ function selectProject(name) {
   document.getElementById('figma-file-id').value    = p.figma_file_id || '';
   document.getElementById('diff-threshold').value   = p.diff_threshold ?? 10;
   document.getElementById('timeout-ms').value       = p.timeout_ms ?? 15000;
-  document.getElementById('seo-only').checked       = p.seo_only || false;
+  document.getElementById('seo-only').checked         = p.seo_only || false;
+  document.getElementById('skip-css-extract').checked = p.skip_css_extract !== undefined ? p.skip_css_extract : true;
+  document.getElementById('only-dev-ready').checked   = p.only_dev_ready !== undefined ? p.only_dev_ready : false;
   document.getElementById('file-id-hint').classList.remove('visible');
 
   // Viewports — use saved viewports or fall back to defaults if empty
@@ -810,10 +857,11 @@ function selectProject(name) {
 
   // Mappings — rebuild rows after viewports are set
   document.getElementById('mappings-table').innerHTML = '';
+  const vpForMappings = getViewports().length > 0 ? getViewports() : DEFAULT_VIEWPORTS;
   if (p.page_frames && p.page_frames.length) {
-    p.page_frames.forEach(r => addMappingRow(r.path || '', r.frames || {}));
+    p.page_frames.forEach(r => _addMappingRowInternal(r.path || '', r.frames || {}, vpForMappings));
   } else {
-    addMappingRow();
+    _addMappingRowInternal('', {}, vpForMappings);
   }
 
   // Update UI
@@ -878,14 +926,16 @@ function clearCurrentProject(e) {
 
 function getFormState() {
   return {
-    site_url:       document.getElementById('site-url').value.trim(),
-    figma_token:    document.getElementById('figma-token').value.trim(),
-    figma_file_id:  document.getElementById('figma-file-id').value.trim(),
-    page_frames:    getMappings(),
-    viewports:      getViewports(),
-    diff_threshold: parseInt(document.getElementById('diff-threshold').value) || 10,
-    timeout_ms:     parseInt(document.getElementById('timeout-ms').value) || 15000,
-    seo_only:       document.getElementById('seo-only').checked,
+    site_url:         document.getElementById('site-url').value.trim(),
+    figma_token:      document.getElementById('figma-token').value.trim(),
+    figma_file_id:    document.getElementById('figma-file-id').value.trim(),
+    page_frames:      getMappings(),
+    viewports:        getViewports(),
+    diff_threshold:   parseInt(document.getElementById('diff-threshold').value) || 10,
+    timeout_ms:       parseInt(document.getElementById('timeout-ms').value) || 15000,
+    seo_only:         document.getElementById('seo-only').checked,
+    skip_css_extract: document.getElementById('skip-css-extract').checked,
+    only_dev_ready:   document.getElementById('only-dev-ready').checked,
   };
 }
 
@@ -923,7 +973,8 @@ const DEFAULT_VIEWPORTS = [
 
 (function init() {
   DEFAULT_VIEWPORTS.forEach(vp => addViewportRow(vp));
-  addMappingRow();
+  _addMappingRowInternal('/', {}, DEFAULT_VIEWPORTS);
+  _addMappingRowInternal('', {}, DEFAULT_VIEWPORTS);
   // Silently check if there's any history so we can show the tab
   fetch('/api/jobs').then(r => r.json()).then(jobs => {
     if (jobs.length) document.getElementById('nav-history').style.display = '';
@@ -989,9 +1040,17 @@ function addViewportRow(vp = {}, isNew = false) {
       fr.className = 'vp-frame-row';
       fr.innerHTML = `
         <span class="vp-frame-label">${escHtml(initialName)}</span>
-        <input type="text" class="map-node-id" data-vp="${escHtml(initialName)}"
-               placeholder="Node ID or Figma link" autocomplete="off" spellcheck="false"
-               oninput="autoExtractNodeId(this)">`;
+        <div class="frame-picker-wrap">
+          <input type="text" class="map-node-id" data-vp="${escHtml(initialName)}"
+                 placeholder="Node ID or Figma link" autocomplete="off" spellcheck="false"
+                 oninput="autoExtractNodeId(this); filterFramePicker(this)"
+                 onfocus="openFramePicker(this)"
+                 onclick="openFramePicker(this)"
+                 onkeydown="navFramePicker(event, this)">
+          <div class="frame-picker-dropdown">
+            <div class="frame-picker-list"></div>
+          </div>
+        </div>`;
       vpFields.appendChild(fr);
     });
   }
@@ -1010,26 +1069,44 @@ function getViewports() {
 
 // ── Page mapping rows ─────────────────────────────────────────────────────────
 function addMappingRow(path = '', frames = {}) {
-  // Fallback to defaults if viewport rows haven't been added yet
   const viewports = getViewports().length > 0 ? getViewports() : DEFAULT_VIEWPORTS;
+  _addMappingRowInternal(path, frames, viewports);
+}
+
+function _addMappingRowInternal(path, frames, viewports) {
   const row = document.createElement('div');
   row.className = 'mapping-row';
 
   const vpFields = viewports.map(vp => `
     <div class="vp-frame-row">
       <span class="vp-frame-label">${escHtml(vp.name)}</span>
-      <input type="text" class="map-node-id" data-vp="${escHtml(vp.name)}"
-             value="${escHtml(frames[vp.name] || '')}"
-             placeholder="Node ID or Figma link"
-             spellcheck="false"
-             oninput="autoExtractNodeId(this)">
+      <div class="frame-picker-wrap">
+        <input type="text" class="map-node-id" data-vp="${escHtml(vp.name)}"
+               value="${escHtml(frames[vp.name] || '')}"
+               placeholder="Node ID or Figma link"
+               spellcheck="false" autocomplete="off"
+               oninput="autoExtractNodeId(this); filterFramePicker(this)"
+               onfocus="openFramePicker(this)"
+               onclick="openFramePicker(this)"
+               onkeydown="navFramePicker(event, this)">
+        <div class="frame-picker-dropdown">
+          <div class="frame-picker-list"></div>
+        </div>
+      </div>
     </div>`).join('');
 
   row.innerHTML = `
     <div class="mapping-path-row">
       <div style="display:flex;flex-direction:column;gap:4px;flex:1;min-width:0">
-        <input type="text" class="map-path" value="${escHtml(path)}" placeholder="/framer-page-path"
-               oninput="autoExtractPath(this)">
+        <div class="path-picker-wrap">
+          <input type="text" class="map-path" value="${escHtml(path)}" placeholder="/framer-page-path"
+                 autocomplete="off" spellcheck="false"
+                 oninput="autoExtractPath(this); filterPathPicker(this)"
+                 onfocus="openPathPicker(this)"
+                 onclick="openPathPicker(this)"
+                 onkeydown="navPathPicker(event, this)">
+          <div class="path-picker-dropdown"></div>
+        </div>
         <span class="extracted-hint map-path-hint"></span>
       </div>
       <button class="del-btn" onclick="this.closest('.mapping-row').remove()" title="Remove">×</button>
@@ -1062,23 +1139,33 @@ function getMappingsForJob() {
 
 // ── Page path auto-extraction from full URL ───────────────────────────────────
 function autoExtractPath(input) {
-  const val = input.value.trim();
+  const val = input.value;
   const hint = input.closest('.mapping-path-row').querySelector('.map-path-hint');
-  // Only act if it looks like a full URL (has a scheme or starts with www)
-  try {
-    const url = new URL(val.startsWith('http') ? val : 'https://' + val);
-    if (!val.startsWith('http')) return; // only auto-extract proper URLs
-    const extracted = url.pathname.replace(/\/+$/, '') || '/';
-    if (extracted !== val) {
-      input.value = extracted;
-      hint.textContent = '';
-      hint.innerHTML = `Extracted path: <code>${escHtml(extracted)}</code>`;
-      hint.classList.add('visible');
-      setTimeout(() => hint.classList.remove('visible'), 4000);
+
+  // If it looks like a full URL, extract the pathname
+  if (val.startsWith('http')) {
+    try {
+      const url = new URL(val);
+      const extracted = url.pathname.replace(/\/+$/, '') || '/';
+      if (extracted !== val) {
+        input.value = extracted;
+        hint.innerHTML = `Extracted path: <code>${escHtml(extracted)}</code>`;
+        hint.classList.add('visible');
+        setTimeout(() => hint.classList.remove('visible'), 4000);
+      }
+    } catch (e) {
+      hint.classList.remove('visible');
     }
-  } catch (e) {
-    hint.classList.remove('visible');
+    return;
   }
+
+  // Auto-prefix "/" — if user types "room" make it "/room"
+  if (val && !val.startsWith('/')) {
+    const cursorPos = input.selectionStart;
+    input.value = '/' + val;
+    input.setSelectionRange(cursorPos + 1, cursorPos + 1);
+  }
+  hint.classList.remove('visible');
 }
 
 // ── Figma File ID auto-extraction ─────────────────────────────────────────────
@@ -1109,64 +1196,278 @@ function autoExtractNodeId(input) {
   }
 }
 
+// ── Figma frame store (node_id → name, plus full list for picker) ────────────
+const _frameNames = {};    // node_id → display name
+let   _framesList = [];    // full list [{name, node_id, page, section, dev_ready}]
+
 // ── Figma frame discovery ─────────────────────────────────────────────────────
 async function fetchFrames() {
-  const token  = document.getElementById('figma-token').value.trim();
-  const fileId = document.getElementById('figma-file-id').value.trim();
-  const btn    = document.getElementById('fetch-frames-btn');
-  const list   = document.getElementById('frames-list');
+  const token        = document.getElementById('figma-token').value.trim();
+  const fileId       = document.getElementById('figma-file-id').value.trim();
+  const onlyDevReady = document.getElementById('only-dev-ready').checked;
 
-  if (!token || !fileId) {
-    showError('Enter your Figma API token and File ID first.');
-    return;
-  }
-  btn.disabled = true;
-  btn.textContent = '⏳ Fetching…';
-  list.classList.remove('visible');
-  list.innerHTML = '';
+  if (!token || !fileId) return;
 
   try {
     const res  = await fetch('/api/figma/frames', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ api_token: token, file_id: fileId }),
+      body: JSON.stringify({ api_token: token, file_id: fileId, only_dev_ready: onlyDevReady }),
     });
     const data = await res.json();
     if (data.error) throw new Error(data.error);
 
     if (!data.frames.length) {
-      list.innerHTML = '<div style="padding:12px;color:var(--muted);font-size:12px">No frames found in this file.</div>';
+      const hint = onlyDevReady
+        ? 'No "Ready for Dev" frames found — try unchecking "Ready for Dev only" and fetching again.'
+        : 'No frames found in this file.';
+      showToast(hint, true);
     } else {
-      data.frames.forEach(f => {
-        const item = document.createElement('div');
-        item.className = 'frame-item';
-        const sectionBadge = f.section
-          ? `<span style="color:var(--accent);font-size:10px;font-weight:600">§ ${escHtml(f.section)}</span> `
-          : '';
-        item.innerHTML = `
-          <span class="frame-name">${sectionBadge}${escHtml(f.name)}</span>
-          <span class="frame-meta">Page: ${escHtml(f.page)} &nbsp;·&nbsp; ID: ${escHtml(f.node_id)}</span>
-          <span class="frame-hint">Click to add as Desktop frame →</span>`;
-        item.onclick = () => {
-          const rawName = f.name.includes(' / ') ? f.name.split(' / ').pop() : f.name;
-          const suggested = '/' + rawName.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9\-]/g, '');
-          const finalPath = suggested === '/home' ? '/' : suggested;
-          const viewports = getViewports();
-          const frames = {};
-          if (viewports.length > 0) frames[viewports[0].name] = f.node_id;
-          addMappingRow(finalPath, frames);
-        };
-        list.appendChild(item);
-      });
+      _framesList = data.frames;
+      data.frames.forEach(f => { _frameNames[f.node_id] = f.name; });
+      showToast(`${data.frames.length} frame${data.frames.length !== 1 ? 's' : ''} loaded — click any node field to pick`);
     }
-    list.classList.add('visible');
   } catch (err) {
-    showError('Figma error: ' + err.message);
-  } finally {
-    btn.disabled = false;
-    btn.textContent = '🔎 Fetch frames from Figma file';
+    showToast('Figma error: ' + err.message, true);
   }
 }
+
+// ── Page discovery + path picker dropdown ────────────────────────────────────
+let _sitePages = [];   // discovered paths from sitemap
+
+function onSiteUrlChange() {
+  _sitePages = [];
+  resetFetchBtn();
+}
+
+function resetFetchBtn() {
+  const btn = document.getElementById('fetch-btn');
+  if (!btn) return;
+  btn.disabled = false;
+  btn.textContent = 'Fetch';
+  btn.style.background = 'var(--accent)';
+}
+
+async function fetchAll() {
+  const siteUrl    = document.getElementById('site-url').value.trim();
+  const figmaToken = document.getElementById('figma-token').value.trim();
+  const figmaFile  = document.getElementById('figma-file-id').value.trim();
+  const hasSite    = siteUrl && siteUrl.startsWith('http');
+  const hasFigma   = figmaToken && figmaFile;
+
+  if (!hasSite && !hasFigma) {
+    showToast('Enter a Site URL or Figma credentials first.', true);
+    return;
+  }
+
+  const btn = document.getElementById('fetch-btn');
+  btn.disabled = true;
+  btn.style.opacity = '0.8';
+  btn.textContent = 'Fetching…';
+
+  // Track success per task so we only go green if something actually worked
+  let anySuccess = false;
+
+  const tasks = [];
+  if (hasSite)  tasks.push(discoverPages(siteUrl).then(() => { if (_sitePages.length)  anySuccess = true; }).catch(() => {}));
+  if (hasFigma) tasks.push(fetchFrames().then(() => { if (_framesList.length) anySuccess = true; }).catch(() => {}));
+  await Promise.all(tasks);
+
+  btn.disabled = false;
+  btn.style.opacity = '1';
+  if (anySuccess) {
+    btn.textContent = '✓ Fetched';
+    btn.style.background = '#12b76a';
+  } else {
+    btn.textContent = 'Fetch';
+    btn.style.background = '';
+  }
+}
+
+async function discoverPages(url) {
+  url = url || document.getElementById('site-url').value.trim();
+  if (!url || !url.startsWith('http')) return;
+  try {
+    const res  = await fetch('/api/pages?' + new URLSearchParams({ url }));
+    const data = await res.json();
+    if (data.error) throw new Error(data.error);
+    _sitePages = data.paths;
+    showToast(`Found ${_sitePages.length} page${_sitePages.length !== 1 ? 's' : ''} — click any path field to pick`);
+  } catch (e) {
+    showToast('Could not discover pages: ' + e.message, true);
+  }
+}
+
+function openPathPicker(input) {
+  if (!_sitePages.length) return;
+  const dropdown = input.nextElementSibling;
+  renderPathPickerList(input, dropdown, input.value);
+  dropdown.classList.add('open');
+  document.querySelectorAll('.path-picker-dropdown.open').forEach(d => {
+    if (d !== dropdown) d.classList.remove('open');
+  });
+}
+
+function renderPathPickerList(input, dropdown, query) {
+  const q = query.toLowerCase().replace(/^\//, '').trim();
+  const filtered = q
+    ? _sitePages.filter(p => p.toLowerCase().includes(q))
+    : _sitePages;
+  if (!filtered.length) {
+    dropdown.innerHTML = '<div class="path-picker-empty">No pages match</div>';
+    return;
+  }
+  dropdown.innerHTML = filtered.map((p, i) =>
+    `<div class="path-picker-item" data-path="${escHtml(p)}" data-idx="${i}"
+          onmousedown="pickPath(event, this)">${escHtml(p)}</div>`
+  ).join('');
+}
+
+function filterPathPicker(input) {
+  const dropdown = input.nextElementSibling;
+  if (!dropdown || !dropdown.classList.contains('open')) return;
+  renderPathPickerList(input, dropdown, input.value);
+}
+
+function pickPath(e, item) {
+  e.preventDefault();
+  const dropdown = item.closest('.path-picker-dropdown');
+  const input    = dropdown.previousElementSibling;
+  input.value = item.dataset.path;
+  dropdown.classList.remove('open');
+}
+
+function navPathPicker(e, input) {
+  const dropdown = input.nextElementSibling;
+  if (!dropdown || !dropdown.classList.contains('open')) return;
+  const items = dropdown.querySelectorAll('.path-picker-item');
+  if (!items.length) return;
+  const current = dropdown.querySelector('.path-picker-item.highlighted');
+  let idx = current ? parseInt(current.dataset.idx) : -1;
+  if (e.key === 'ArrowDown')      { e.preventDefault(); idx = Math.min(idx + 1, items.length - 1); }
+  else if (e.key === 'ArrowUp')   { e.preventDefault(); idx = Math.max(idx - 1, 0); }
+  else if (e.key === 'Enter' && current) { e.preventDefault(); pickPath(e, current); return; }
+  else if (e.key === 'Escape')    { dropdown.classList.remove('open'); return; }
+  else return;
+  items.forEach(i => i.classList.remove('highlighted'));
+  const target = dropdown.querySelector(`.path-picker-item[data-idx="${idx}"]`);
+  if (target) { target.classList.add('highlighted'); target.scrollIntoView({ block: 'nearest' }); }
+}
+
+// Close path picker when clicking outside or tabbing away
+document.addEventListener('mousedown', e => {
+  if (!e.target.closest('.path-picker-wrap')) {
+    document.querySelectorAll('.path-picker-dropdown.open').forEach(d => d.classList.remove('open'));
+  }
+});
+document.addEventListener('focusout', e => {
+  const wrap = e.target.closest('.path-picker-wrap');
+  if (wrap && !wrap.contains(e.relatedTarget)) {
+    wrap.querySelector('.path-picker-dropdown')?.classList.remove('open');
+  }
+});
+
+// ── Frame picker dropdown ─────────────────────────────────────────────────────
+
+function openFramePicker(input) {
+  if (!_framesList.length) return;  // no frames fetched yet — plain text input
+  const dropdown = input.nextElementSibling;
+  renderFramePickerList(input, dropdown, input.value);  // filter by whatever is already typed
+  dropdown.classList.add('open');
+  // Close all other open dropdowns
+  document.querySelectorAll('.frame-picker-dropdown.open').forEach(d => {
+    if (d !== dropdown) d.classList.remove('open');
+  });
+}
+
+function renderFramePickerList(input, dropdown, query) {
+  const list = dropdown.querySelector('.frame-picker-list');
+  const q = query.toLowerCase().trim();
+  const filtered = q
+    ? _framesList.filter(f => f.name.toLowerCase().includes(q) || f.page.toLowerCase().includes(q))
+    : _framesList;
+
+  if (!filtered.length) {
+    list.innerHTML = '<div class="frame-picker-empty">No frames match</div>';
+    return;
+  }
+
+  list.innerHTML = filtered.map((f, i) => {
+    const devBadge = f.dev_ready ? ' <span style="color:#12b76a;font-size:10px">✓</span>' : '';
+    const sectionLabel = f.section ? `${f.section} / ` : '';
+    return `<div class="frame-picker-item" data-node-id="${escHtml(f.node_id)}" data-idx="${i}"
+              onmousedown="pickFrame(event, this)">
+      <span class="fp-name">${escHtml(sectionLabel + f.name)}${devBadge}</span>
+      <span class="fp-meta">${escHtml(f.page)} · ${escHtml(f.node_id)}</span>
+    </div>`;
+  }).join('');
+}
+
+function filterFramePicker(input) {
+  const dropdown = input.nextElementSibling;
+  if (!dropdown || !dropdown.classList.contains('open')) return;
+  renderFramePickerList(input, dropdown, input.value);
+}
+
+function pickFrame(e, item) {
+  e.preventDefault();
+  const dropdown = item.closest('.frame-picker-dropdown');
+  const input    = dropdown.previousElementSibling;
+  input.value = item.dataset.nodeId;
+  input.style.borderColor = 'var(--pass)';
+  setTimeout(() => input.style.borderColor = '', 2000);
+  dropdown.classList.remove('open');
+  // Show the frame name as a hint below the input
+  const hint = input.closest('.mapping-path-row') ? null
+    : input.closest('.vp-frame-row').querySelector('.map-path-hint');
+  // trigger autoExtract in case node ID was pasted from picker
+  autoExtractNodeId(input);
+}
+
+function navFramePicker(e, input) {
+  const actualDropdown = input.nextElementSibling;
+  if (!actualDropdown || !actualDropdown.classList.contains('open')) return;
+
+  const items = actualDropdown.querySelectorAll('.frame-picker-item');
+  if (!items.length) return;
+
+  const current = actualDropdown.querySelector('.frame-picker-item.highlighted');
+  let idx = current ? parseInt(current.dataset.idx) : -1;
+
+  if (e.key === 'ArrowDown') {
+    e.preventDefault();
+    idx = Math.min(idx + 1, items.length - 1);
+  } else if (e.key === 'ArrowUp') {
+    e.preventDefault();
+    idx = Math.max(idx - 1, 0);
+  } else if (e.key === 'Enter' && current) {
+    e.preventDefault();
+    pickFrame(e, current);
+    return;
+  } else if (e.key === 'Escape') {
+    actualDropdown.classList.remove('open');
+    return;
+  } else {
+    return;
+  }
+
+  items.forEach(i => i.classList.remove('highlighted'));
+  const target = actualDropdown.querySelector(`.frame-picker-item[data-idx="${idx}"]`);
+  if (target) { target.classList.add('highlighted'); target.scrollIntoView({block: 'nearest'}); }
+}
+
+// Close frame picker when clicking outside or tabbing away
+document.addEventListener('mousedown', e => {
+  if (!e.target.closest('.frame-picker-wrap')) {
+    document.querySelectorAll('.frame-picker-dropdown.open').forEach(d => d.classList.remove('open'));
+  }
+});
+document.addEventListener('focusout', e => {
+  const wrap = e.target.closest('.frame-picker-wrap');
+  if (wrap && !wrap.contains(e.relatedTarget)) {
+    wrap.querySelector('.frame-picker-dropdown')?.classList.remove('open');
+  }
+});
 
 // ── Start job ─────────────────────────────────────────────────────────────────
 async function startJob() {
@@ -1176,14 +1477,16 @@ async function startJob() {
   if (!siteUrl.startsWith('http')) { showError('Site URL must start with http:// or https://'); return; }
 
   const body = {
-    site_url:       siteUrl,
-    figma_token:    document.getElementById('figma-token').value.trim(),
-    figma_file_id:  document.getElementById('figma-file-id').value.trim(),
-    page_frames:    getMappingsForJob(),
-    viewports:      getViewports(),
-    diff_threshold: parseInt(document.getElementById('diff-threshold').value) || 10,
-    timeout_ms:     parseInt(document.getElementById('timeout-ms').value) || 15000,
-    seo_only:       document.getElementById('seo-only').checked,
+    site_url:          siteUrl,
+    figma_token:       document.getElementById('figma-token').value.trim(),
+    figma_file_id:     document.getElementById('figma-file-id').value.trim(),
+    page_frames:       getMappingsForJob(),
+    viewports:         getViewports(),
+    diff_threshold:    parseInt(document.getElementById('diff-threshold').value) || 10,
+    timeout_ms:        parseInt(document.getElementById('timeout-ms').value) || 15000,
+    seo_only:          document.getElementById('seo-only').checked,
+    skip_css_extract:  document.getElementById('skip-css-extract').checked,
+    frame_names:       Object.assign({}, _frameNames),  // node_id → name for readable logs
   };
 
   document.getElementById('run-btn').disabled = true;
@@ -1309,13 +1612,8 @@ function appendLog(msg, cls = '') {
 
 // ── Report ────────────────────────────────────────────────────────────────────
 function openReport() {
-  if (!currentReportUrl) return;
-  document.getElementById('report-iframe').src = currentReportUrl;
-  document.getElementById('report-url-badge').textContent = currentReportUrl;
-  switchPanel('view-report');
+  if (currentReportUrl) window.open(currentReportUrl, '_blank');
 }
-function openReportTab() { if (currentReportUrl) window.open(currentReportUrl, '_blank'); }
-function backToConsole() { switchPanel('view-running'); }
 
 // ── History ───────────────────────────────────────────────────────────────────
 async function loadHistory() {
@@ -1325,26 +1623,52 @@ async function loadHistory() {
     const jobs = await res.json();
     if (!jobs.length) { el.innerHTML = '<div class="history-empty">No checks yet.</div>'; return; }
     document.getElementById('nav-history').style.display = '';
-    el.innerHTML = '<div class="history-list">' + jobs.map(j => `
+    el.innerHTML = '<div class="history-list">' + jobs.map(j => {
+      const favicon = j.favicon_url
+        ? `<img class="history-favicon" src="${escHtml(j.favicon_url)}" alt="" onerror="this.outerHTML='<div class=\\'history-favicon-placeholder\\'>🌐</div>'">`
+        : `<div class="history-favicon-placeholder">🌐</div>`;
+      const actions = `
+        <div class="history-item-actions">
+          <span class="history-status ${j.status}">${j.status}</span>
+          ${j.report_url ? `<button class="history-report-btn" onclick="loadHistoryReport('${j.report_url}')">View report</button>` : ''}
+          ${j.status === 'done' ? `<button class="history-rerun-btn" onclick="rerunJob('${j.id}')">↩ Re-run</button>` : ''}
+        </div>`;
+      return `
       <div class="history-item">
+        ${favicon}
         <div class="history-item-left">
           <div class="site">${escHtml(j.site_url)}</div>
           <div class="date">${formatDate(j.created_at)}</div>
         </div>
-        <span class="history-status ${j.status}">${j.status}</span>
-        ${j.report_url ? `<button class="history-report-btn" onclick="loadHistoryReport('${j.report_url}')">View report</button>` : ''}
-      </div>`).join('') + '</div>';
+        ${actions}
+      </div>`;
+    }).join('') + '</div>';
   } catch (e) {
     el.innerHTML = '<div class="history-empty">Could not load history.</div>';
   }
 }
 
+async function rerunJob(jobId) {
+  try {
+    const res  = await fetch(`/api/rerun/${jobId}`, { method: 'POST' });
+    const data = await res.json();
+    if (data.error) { showToast(data.error, true); return; }
+    currentJobId = data.job_id;
+    logOffset = 0;
+    resetConsole();
+    document.getElementById('nav-running').style.display = '';
+    switchPanel('view-running');
+    showTab('running');
+    startPolling();
+    showToast('Re-running QA check…');
+  } catch (e) {
+    showToast('Re-run failed: ' + e.message, true);
+  }
+}
+
 function loadHistoryReport(url) {
   currentReportUrl = url;
-  document.getElementById('report-iframe').src = url;
-  document.getElementById('report-url-badge').textContent = url;
-  switchPanel('view-report');
-  document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+  window.open(url, '_blank');
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -1379,7 +1703,7 @@ function showToast(msg, isError = false) {
     document.body.appendChild(toast);
   }
   toast.textContent = msg;
-  toast.style.background = isError ? '#dc2626' : '#059669';
+  toast.style.background = isError ? '#f04438' : '#12b76a';
   toast.style.opacity = '1';
   clearTimeout(toast._timer);
   toast._timer = setTimeout(() => { toast.style.opacity = '0'; }, 2500);

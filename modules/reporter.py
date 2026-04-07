@@ -72,8 +72,11 @@ def _render_html(*, site_url, date_str, total_pages, total_pass, total_warn,
 
     seo_table_rows = "\n".join(_render_seo_row(r) for r in results)
     seo_check_names = []
-    if results:
-        seo_check_names = [c["name"] for c in results[0]["seo"]["checks"]]
+    for r in results:  # use first result that actually has checks (homepage may fail)
+        names = [c["name"] for c in (r.get("seo") or {}).get("checks") or []]
+        if names:
+            seo_check_names = names
+            break
     seo_headers = "\n".join(f"<th>{name}</th>" for name in seo_check_names)
 
     sim_html = ""
@@ -85,102 +88,226 @@ def _render_html(*, site_url, date_str, total_pages, total_pass, total_warn,
 
     site_seo_html = _render_site_seo_section(site_seo) if site_seo else ""
 
+    # Sidebar navigation links for each page
+    def _sidebar_page_link(r):
+        path    = r.get("path", "/") or "/"
+        sid     = path.strip("/").replace("/", "_") or "home"
+        label   = path if path != "/" else "/"
+        seo     = r.get("seo", {})
+        dot_color = "#dc2626" if seo.get("fail_count") else ("#d97706" if seo.get("warn_count") else "#16a34a")
+        return (f'<a href="#page-{sid}" class="nav-item">'
+                f'<span class="nav-dot" style="background:{dot_color}"></span>'
+                f'{label}</a>')
+    sidebar_links = "\n".join(_sidebar_page_link(r) for r in results)
+
     return f"""<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Framer QA Report — {site_url}</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
   :root {{
-    --bg:       #f0f2f5;
-    --surface:  #fafaf8;
-    --border:   #e5e7eb;
-    --text:     #111827;
-    --muted:    #4b5563;
-    --subtle:   #f9fafb;
-    --pass:     #10b981;
-    --warn:     #f59e0b;
-    --fail:     #ef4444;
-    --accent:   #6366f1;
-    --accent-light: #eef2ff;
-    --pass-light:   #ecfdf5;
-    --warn-light:   #fffbeb;
-    --fail-light:   #fef2f2;
-    --shadow-sm: 0 1px 3px rgba(0,0,0,.06), 0 1px 2px rgba(0,0,0,.04);
-    --shadow:    0 4px 12px rgba(0,0,0,.06), 0 1px 3px rgba(0,0,0,.04);
-    --radius:   12px;
+    --surface:      #ffffff;
+    --shell-bg:     #f9fafb;
+    --border:       #e4e7ec;
+    --border2:      #f2f4f7;
+    --text:         #101828;
+    --muted:        #667085;
+    --muted2:       #98a2b3;
+    --subtle:       #f9fafb;
+    --pass:         #12b76a;
+    --warn:         #f79009;
+    --fail:         #f04438;
+    --accent:       #101828;
+    --accent-h:     #1d2939;
+    --accent-light: #f2f4f7;
+    --pass-light:   #ecfdf3;
+    --pass-text:    #027a48;
+    --warn-light:   #fffaeb;
+    --warn-text:    #b54708;
+    --fail-light:   #fef3f2;
+    --fail-text:    #b42318;
+    --shadow-sm:    0 1px 3px rgba(16,24,40,.06), 0 1px 2px rgba(16,24,40,.04);
+    --shadow:       0 4px 16px rgba(16,24,40,.08), 0 1px 4px rgba(16,24,40,.04);
+    --radius:       12px;
   }}
   * {{ box-sizing: border-box; margin: 0; padding: 0; }}
+  html, body {{ height: 100%; }}
   body {{
-    font-family: -apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', sans-serif;
-    background: var(--bg);
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    background: #eaecf0;
+    min-height: 100vh;
+    padding: 20px;
     color: var(--text);
     font-size: 14px;
     line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
   }}
   a {{ color: var(--accent); text-decoration: none; }}
   a:hover {{ text-decoration: underline; }}
 
-  /* ── Layout ── */
-  .header {{
+  /* ── App Shell ── */
+  .app-shell {{
+    display: flex;
+    height: calc(100vh - 40px);
+    max-width: 1480px;
+    margin: 0 auto;
+    background: var(--shell-bg);
+    border-radius: 20px;
+    overflow: hidden;
+    box-shadow: 0 24px 64px rgba(16,24,40,.10), 0 0 0 1px rgba(16,24,40,.06);
+  }}
+
+  /* ── Sidebar ── */
+  .sidebar {{
+    width: 216px;
+    flex-shrink: 0;
     background: var(--surface);
-    border-bottom: 1px solid var(--border);
-    padding: 20px 40px;
+    border-right: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }}
+  .sidebar-brand {{
+    padding: 18px 16px 14px;
+    border-bottom: 1px solid var(--border2);
     display: flex;
     align-items: center;
-    justify-content: space-between;
-    box-shadow: var(--shadow-sm);
+    gap: 10px;
   }}
-  .header-brand {{
-    display: flex;
-    align-items: center;
-    gap: 12px;
-  }}
-  .header-logo {{
-    width: 36px; height: 36px;
+  .sidebar-logo {{
+    width: 32px; height: 32px;
     background: var(--accent);
-    border-radius: 10px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 18px;
+    border-radius: 9px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 16px;
+    flex-shrink: 0;
+    cursor: pointer;
+    transition: opacity .15s;
+    box-shadow: 0 1px 4px rgba(16,24,40,.2);
+  }}
+  .sidebar-logo:hover {{ opacity: 0.8; }}
+  .sidebar-brand-name {{
+    font-size: 13px; font-weight: 700;
+    color: var(--text); letter-spacing: -0.2px;
+  }}
+  .sidebar-meta {{
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--border2);
+  }}
+  .sidebar-site {{
+    font-size: 11.5px; font-weight: 500;
+    color: var(--accent);
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    margin-bottom: 2px;
+  }}
+  .sidebar-date {{
+    font-size: 10.5px;
+    color: var(--muted2);
+  }}
+  .sidebar-nav {{
+    flex: 1;
+    overflow-y: auto;
+    padding: 10px 8px;
+  }}
+  .nav-section-label {{
+    font-size: 10px; font-weight: 600;
+    text-transform: uppercase; letter-spacing: .8px;
+    color: var(--muted2);
+    padding: 10px 8px 4px;
+  }}
+  .nav-item {{
+    display: flex; align-items: center; gap: 8px;
+    padding: 6px 10px;
+    border-radius: 8px;
+    color: var(--muted);
+    font-size: 12.5px; font-weight: 500;
+    text-decoration: none;
+    transition: background .12s, color .12s;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    cursor: pointer;
+  }}
+  .nav-item:hover {{ background: var(--subtle); color: var(--text); text-decoration: none; }}
+  .nav-item.active {{ background: var(--accent-light); color: var(--accent); font-weight: 600; }}
+  .nav-item-icon {{ font-size: 13px; flex-shrink: 0; }}
+  .nav-dot {{
+    width: 7px; height: 7px;
+    border-radius: 50%;
     flex-shrink: 0;
   }}
-  .header-left h1 {{ font-size: 17px; font-weight: 700; color: var(--text); letter-spacing: -0.3px; }}
-  .header-left .subtitle {{ color: var(--muted); font-size: 12px; margin-top: 1px; }}
-  .header-right {{ color: var(--muted); font-size: 12px; text-align: right; line-height: 1.7; }}
-  .header-right strong {{ color: var(--text); font-weight: 600; }}
+  .sidebar-actions {{
+    padding: 10px 8px;
+    border-top: 1px solid var(--border2);
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+  }}
+  .sidebar-btn {{
+    display: flex; align-items: center; gap: 8px;
+    padding: 7px 12px;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    background: transparent;
+    color: var(--muted);
+    font-size: 12px; font-weight: 500;
+    cursor: pointer;
+    transition: all .15s;
+    font-family: inherit;
+    width: 100%;
+  }}
+  .sidebar-btn:hover {{ border-color: var(--accent); color: var(--accent); background: var(--accent-light); }}
 
-  .container {{ max-width: 1400px; margin: 0 auto; padding: 28px 40px; }}
+  /* ── Main Content ── */
+  .main-content {{
+    flex: 1;
+    overflow-y: auto;
+    background: var(--shell-bg);
+  }}
+  .main-inner {{
+    padding: 36px 44px;
+    max-width: 1100px;
+  }}
+
+  /* ── Page title ── */
+  .page-heading {{
+    margin-bottom: 28px;
+  }}
+  .page-heading h2 {{
+    font-size: 22px; font-weight: 800;
+    color: var(--text); letter-spacing: -0.5px;
+    margin-bottom: 4px;
+  }}
+  .page-heading .sub {{
+    font-size: 13px; color: var(--muted);
+  }}
+  .page-heading .sub a {{ color: var(--accent); }}
 
   /* ── Summary Cards ── */
   .summary {{
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
-    gap: 16px;
-    margin-bottom: 32px;
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    gap: 12px;
+    margin-bottom: 36px;
   }}
   .stat-card {{
     background: var(--surface);
     border: 1px solid var(--border);
     border-radius: var(--radius);
-    padding: 20px 24px;
+    padding: 20px 22px;
     box-shadow: var(--shadow-sm);
   }}
   .stat-value {{
-    font-size: 30px;
-    font-weight: 800;
-    line-height: 1;
-    margin-bottom: 6px;
+    font-size: 30px; font-weight: 800;
+    line-height: 1; margin-bottom: 6px;
     letter-spacing: -1px;
   }}
   .stat-label {{
-    color: var(--muted);
-    font-size: 11.5px;
-    text-transform: uppercase;
-    letter-spacing: .6px;
-    font-weight: 600;
+    color: var(--muted); font-size: 11px;
+    text-transform: uppercase; letter-spacing: .7px; font-weight: 600;
   }}
   .pass    {{ color: var(--pass); }}
   .warn    {{ color: var(--warn); }}
@@ -188,33 +315,22 @@ def _render_html(*, site_url, date_str, total_pages, total_pass, total_warn,
   .neutral {{ color: var(--accent); }}
 
   /* ── Section ── */
-  .section {{ margin-bottom: 40px; }}
+  .section {{ margin-bottom: 36px; }}
   .section-title {{
-    font-size: 15px;
-    font-weight: 700;
-    margin-bottom: 16px;
-    color: var(--text);
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    letter-spacing: -0.2px;
+    font-size: 11px; font-weight: 700;
+    margin-bottom: 14px;
+    color: var(--muted2);
+    display: flex; align-items: center; gap: 8px;
+    letter-spacing: .8px; text-transform: uppercase;
   }}
   .section-title .section-icon {{
-    width: 28px; height: 28px;
-    border-radius: 8px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 14px;
-    background: var(--accent-light);
-    flex-shrink: 0;
+    width: 20px; height: 20px; border-radius: 6px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 11px; background: var(--border2); flex-shrink: 0;
   }}
   .section-subtitle {{
-    color: var(--muted);
-    font-size: 12.5px;
-    margin-top: -10px;
-    margin-bottom: 16px;
-    padding-left: 36px;
+    color: var(--muted); font-size: 12px;
+    margin-top: -8px; margin-bottom: 14px; padding-left: 28px;
   }}
 
   /* ── SEO Table ── */
@@ -231,8 +347,8 @@ def _render_html(*, site_url, date_str, total_pages, total_pass, total_warn,
     font-size: 13px;
   }}
   th, td {{
-    padding: 11px 16px;
-    border-bottom: 1px solid var(--border);
+    padding: 10px 16px;
+    border-bottom: 1px solid var(--border2);
     white-space: nowrap;
   }}
   tbody tr:last-child td {{ border-bottom: none; }}
@@ -240,42 +356,74 @@ def _render_html(*, site_url, date_str, total_pages, total_pass, total_warn,
     background: var(--subtle);
     color: var(--muted);
     font-weight: 600;
-    font-size: 11px;
+    font-size: 10.5px;
     text-transform: uppercase;
-    letter-spacing: .5px;
+    letter-spacing: .6px;
     text-align: left;
     position: sticky;
     top: 0;
+    z-index: 2;
+    border-bottom: 1px solid var(--border);
   }}
-  tr:hover td {{ background: #fafbff; }}
-  .page-url {{ color: var(--accent); font-weight: 500; }}
+  tbody tr:hover td {{ background: var(--subtle); }}
+  .page-url {{ color: var(--accent); font-weight: 500; font-size: 12.5px; }}
 
   .badge {{
     display: inline-flex;
     align-items: center;
     gap: 4px;
-    padding: 3px 9px;
-    border-radius: 20px;
-    font-size: 11.5px;
+    padding: 2px 8px;
+    border-radius: 6px;
+    font-size: 11px;
     font-weight: 600;
+    position: relative;
+    letter-spacing: .1px;
   }}
-  .badge.pass {{ background: var(--pass-light); color: #059669; }}
-  .badge.warn {{ background: var(--warn-light); color: #d97706; }}
-  .badge.fail {{ background: var(--fail-light); color: #dc2626; }}
+  .badge.pass {{ background: var(--pass-light); color: var(--pass-text); }}
+  .badge.warn {{ background: var(--warn-light); color: var(--warn-text); }}
+  .badge.fail {{ background: var(--fail-light); color: var(--fail-text); }}
+
+  /* ── Instant custom tooltip (replaces native title delay) ── */
+  .badge[data-tip]::after {{
+    content: attr(data-tip);
+    position: absolute;
+    bottom: calc(100% + 6px);
+    left: 50%;
+    transform: translateX(-50%);
+    background: #1e1e2e;
+    color: #cdd6f4;
+    font-size: 11px;
+    font-weight: 400;
+    line-height: 1.5;
+    width: max-content;
+    max-width: 280px;
+    white-space: normal;
+    word-break: break-word;
+    padding: 5px 9px;
+    border-radius: 6px;
+    box-shadow: 0 4px 12px rgba(0,0,0,.25);
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity .1s;
+    z-index: 100;
+  }}
+  .badge[data-tip]:hover::after {{
+    opacity: 1;
+  }}
 
   /* ── Page Cards (Visual Comparison) ── */
   .page-card {{
     background: var(--surface);
     border: 1px solid var(--border);
     border-radius: var(--radius);
-    margin-bottom: 16px;
+    margin-bottom: 10px;
     overflow: hidden;
     box-shadow: var(--shadow-sm);
-    transition: box-shadow .15s;
+    transition: box-shadow .2s, border-color .2s;
   }}
-  .page-card:hover {{ box-shadow: var(--shadow); }}
+  .page-card:hover {{ box-shadow: var(--shadow); border-color: #c4c9d4; }}
   .page-card-header {{
-    padding: 14px 20px;
+    padding: 13px 18px;
     border-bottom: 1px solid transparent;
     display: flex;
     align-items: center;
@@ -285,42 +433,44 @@ def _render_html(*, site_url, date_str, total_pages, total_pass, total_warn,
     transition: background .1s;
   }}
   .page-card-header:hover {{ background: var(--subtle); }}
-  .page-card.open .page-card-header {{ border-bottom-color: var(--border); }}
-  .page-card-header h3 {{ font-size: 14px; font-weight: 600; color: var(--text); }}
-  .page-card-header .url {{ color: var(--muted); font-size: 11px; margin-top: 1px; }}
-  .chevron {{ color: var(--muted); transition: transform .2s; }}
+  .page-card.open .page-card-header {{ border-bottom-color: var(--border2); }}
+  .page-card-header h3 {{ font-size: 13.5px; font-weight: 600; color: var(--text); letter-spacing: -0.1px; }}
+  .page-card-header .url {{ color: var(--muted2); font-size: 11px; margin-top: 1px; }}
+  .chevron {{ color: var(--muted2); transition: transform .2s; }}
   .page-card.open .chevron {{ transform: rotate(180deg); }}
-  .page-card-body {{ display: none; padding: 20px; }}
+  .page-card-body {{ display: none; padding: 18px; }}
   .page-card.open .page-card-body {{ display: block; }}
 
   /* ── Viewport Tabs ── */
   .vp-tabs {{
     display: flex;
-    gap: 6px;
+    gap: 4px;
     margin-bottom: 16px;
     background: var(--subtle);
-    padding: 4px;
-    border-radius: 10px;
+    padding: 3px;
+    border-radius: 8px;
     width: fit-content;
+    border: 1px solid var(--border2);
   }}
   .vp-tab {{
-    padding: 5px 14px;
-    border-radius: 7px;
+    padding: 4px 13px;
+    border-radius: 6px;
     border: none;
     background: transparent;
-    color: #9ca3af;
+    color: var(--muted);
     cursor: pointer;
-    font-size: 12.5px;
-    font-weight: 600;
-    transition: background .15s, color .15s, box-shadow .15s;
+    font-size: 12px;
+    font-weight: 500;
+    transition: background .15s, color .15s;
     letter-spacing: 0.01em;
+    font-family: inherit;
   }}
-  .vp-tab:hover {{ color: var(--muted2, #374151); background: rgba(0,0,0,.04); }}
+  .vp-tab:hover {{ color: var(--text); background: rgba(0,0,0,.04); }}
   .vp-tab.active {{
     background: var(--surface);
     color: var(--accent);
+    font-weight: 600;
     box-shadow: var(--shadow-sm);
-    border: 1px solid rgba(99,102,241,.18);
   }}
 
   .vp-panel {{ display: none; }}
@@ -384,26 +534,36 @@ def _render_html(*, site_url, date_str, total_pages, total_pass, total_warn,
   /* ── Site-level checks grid ── */
   .site-checks-grid {{
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    grid-template-columns: repeat(3, 1fr);
     gap: 12px;
   }}
   .site-check-card {{
     background: var(--surface);
     border: 1px solid var(--border);
     border-radius: var(--radius);
-    padding: 16px 18px;
+    padding: 18px 20px;
     box-shadow: var(--shadow-sm);
-    transition: box-shadow .15s;
+    transition: box-shadow .2s, border-color .2s;
     display: flex;
     flex-direction: column;
-    gap: 4px;
+    gap: 6px;
   }}
-  .site-check-card:hover {{ box-shadow: var(--shadow); }}
+  .site-check-card:hover {{ box-shadow: var(--shadow); border-color: #c4c9d4; }}
   .site-check-card.og-image-card {{
-    grid-column: 1 / -1;
+    grid-column: span 1;
+    grid-row: span 2;
   }}
   .site-check-card.wide-card {{
     grid-column: span 2;
+  }}
+  @media (max-width: 700px) {{
+    .site-checks-grid {{ grid-template-columns: repeat(2, 1fr); }}
+    .site-check-card.og-image-card {{ grid-row: span 1; }}
+  }}
+  @media (max-width: 480px) {{
+    .site-checks-grid {{ grid-template-columns: 1fr; }}
+    .site-check-card.wide-card,
+    .site-check-card.og-image-card {{ grid-column: span 1; grid-row: span 1; }}
   }}
   .site-check-header {{
     display: flex;
@@ -518,6 +678,7 @@ def _render_html(*, site_url, date_str, total_pages, total_pass, total_warn,
     align-items: center;
     justify-content: center;
     pointer-events: none;
+    z-index: 10;
   }}
   .compare-label {{
     position: absolute;
@@ -607,32 +768,13 @@ def _render_html(*, site_url, date_str, total_pages, total_pass, total_warn,
 
   /* ── Footer ── */
   .footer {{
-    border-top: 1px solid var(--border);
-    padding: 18px 40px;
-    color: var(--muted);
-    font-size: 12px;
+    border-top: 1px solid var(--border2);
+    padding: 16px 44px;
+    color: var(--muted2);
+    font-size: 11px;
     text-align: center;
-    background: var(--surface);
-    margin-top: 16px;
+    letter-spacing: .1px;
   }}
-
-  /* ── Print / Export button ── */
-  .print-btn {{
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    padding: 7px 16px;
-    border-radius: 8px;
-    border: 1px solid var(--border);
-    background: var(--surface);
-    color: var(--text);
-    font-size: 12.5px;
-    font-weight: 600;
-    cursor: pointer;
-    transition: all .15s;
-    font-family: inherit;
-  }}
-  .print-btn:hover {{ background: var(--accent-light); border-color: var(--accent); color: var(--accent); }}
 
   /* ── Per-page notes ── */
   .page-notes-wrapper {{
@@ -670,18 +812,20 @@ def _render_html(*, site_url, date_str, total_pages, total_pass, total_warn,
 
   /* ── Print media ── */
   @media print {{
-    .print-btn {{ display: none !important; }}
+    body {{ background: white !important; padding: 0; }}
+    .app-shell {{ height: auto; box-shadow: none; border-radius: 0; display: block; }}
+    .sidebar {{ display: none !important; }}
+    .main-content {{ overflow: visible; }}
+    .main-inner {{ padding: 24px; max-width: 100%; }}
+    .sidebar-btn {{ display: none !important; }}
     .vp-tabs, .img-view-tabs {{ display: none !important; }}
     .page-card-body {{ display: block !important; }}
-    .page-card {{ break-inside: avoid; margin-bottom: 24px; box-shadow: none; border: 1px solid #d1d5db; }}
+    .page-card {{ break-inside: avoid; margin-bottom: 24px; box-shadow: none; }}
     .vp-panel {{ display: block !important; }}
     .img-panel {{ display: block !important; margin-bottom: 8px; }}
     .screenshot {{ max-height: 400px; object-fit: contain; }}
-    body {{ background: white; font-size: 12px; }}
-    .header {{ box-shadow: none; print-color-adjust: exact; -webkit-print-color-adjust: exact; }}
     .stat-card {{ break-inside: avoid; print-color-adjust: exact; -webkit-print-color-adjust: exact; }}
     .summary {{ grid-template-columns: repeat(4, 1fr); }}
-    .container {{ padding: 16px 24px; }}
     .page-notes-wrapper {{ display: none; }}
     .site-checks-grid {{ grid-template-columns: repeat(3, 1fr); }}
   }}
@@ -689,94 +833,168 @@ def _render_html(*, site_url, date_str, total_pages, total_pass, total_warn,
 </head>
 <body>
 
-<div class="header">
-  <div class="header-brand">
-    <div class="header-logo">🔍</div>
-    <div class="header-left">
-      <h1>Framer QA Report</h1>
-      <div class="subtitle"><a href="{site_url}" target="_blank">{site_url}</a></div>
-    </div>
-  </div>
-  <div style="display:flex;align-items:center;gap:20px">
-    <div class="header-right">
-      <strong>{total_pages} page{"s" if total_pages != 1 else ""} checked</strong><br>
-      {date_str}
-    </div>
-    <button class="print-btn" onclick="savePDF()">
-      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-      Save PDF
-    </button>
-  </div>
-</div>
+<div class="app-shell">
 
-<div class="container">
-
-  <!-- Summary -->
-  <div class="summary">
-    <div class="stat-card card-neutral">
-      <div class="stat-value neutral">{total_pages}</div>
-      <div class="stat-label">Pages Checked</div>
+  <!-- ── Sidebar ── -->
+  <aside class="sidebar">
+    <div class="sidebar-brand">
+      <div class="sidebar-logo" onclick="window.location.href='/'" title="Back to Framer QA">🔍</div>
+      <span class="sidebar-brand-name">Framer QA</span>
     </div>
-    <div class="stat-card card-pass">
-      <div class="stat-value pass">{total_pass}</div>
-      <div class="stat-label">SEO Checks Passed</div>
+    <div class="sidebar-meta">
+      <div class="sidebar-site"><a href="{site_url}" target="_blank" style="color:var(--accent);text-decoration:none">{site_url}</a></div>
+      <div class="sidebar-date">{date_str}</div>
     </div>
-    <div class="stat-card card-warn">
-      <div class="stat-value warn">{total_warn}</div>
-      <div class="stat-label">Warnings</div>
+    <nav class="sidebar-nav">
+      <div class="nav-section-label">Report</div>
+      <a href="#summary" class="nav-item"><span class="nav-item-icon">📊</span> Overview</a>
+      <a href="#site-checks" class="nav-item"><span class="nav-item-icon">🌐</span> Site Checks</a>
+      <a href="#seo-table" class="nav-item"><span class="nav-item-icon">📋</span> Page SEO</a>
+      <a href="#visual" class="nav-item"><span class="nav-item-icon">🎨</span> Visual</a>
+      <div class="nav-section-label">Pages</div>
+      {sidebar_links}
+    </nav>
+    <div class="sidebar-actions">
+      <button class="sidebar-btn" id="copy-link-btn" onclick="copyReportLink(this)">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+        Copy Link
+      </button>
+      <button class="sidebar-btn" onclick="savePDF()">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+        Save PDF
+      </button>
     </div>
-    <div class="stat-card card-fail">
-      <div class="stat-value fail">{total_fail}</div>
-      <div class="stat-label">Failures</div>
+  </aside>
+
+  <!-- ── Main Content ── -->
+  <main class="main-content">
+    <div class="main-inner">
+
+      <!-- Page heading -->
+      <div class="page-heading" id="summary">
+        <h2>QA Report</h2>
+        <div class="sub">{total_pages} page{"s" if total_pages != 1 else ""} checked &nbsp;·&nbsp; {date_str}</div>
+      </div>
+
+      <!-- Summary Cards -->
+      <div class="summary">
+        <div class="stat-card card-neutral">
+          <div class="stat-value neutral">{total_pages}</div>
+          <div class="stat-label">Pages Checked</div>
+        </div>
+        <div class="stat-card card-pass">
+          <div class="stat-value pass">{total_pass}</div>
+          <div class="stat-label">SEO Passed</div>
+        </div>
+        <div class="stat-card card-warn">
+          <div class="stat-value warn">{total_warn}</div>
+          <div class="stat-label">Warnings</div>
+        </div>
+        <div class="stat-card card-fail">
+          <div class="stat-value fail">{total_fail}</div>
+          <div class="stat-label">Failures</div>
+        </div>
+        {sim_html}
+      </div>
+
+      <!-- Site-level SEO -->
+      <div id="site-checks">
+        {site_seo_html}
+      </div>
+
+      <!-- Page-level SEO Table -->
+      <div class="section" id="seo-table">
+        <div class="section-title"><span class="section-icon">📋</span> Page-level SEO</div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Page</th>
+                {seo_headers}
+              </tr>
+            </thead>
+            <tbody>
+              {seo_table_rows}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Visual Comparison -->
+      <div class="section" id="visual">
+        <div class="section-title"><span class="section-icon">🎨</span> Visual Comparison — Live vs Figma</div>
+        {pages_html}
+      </div>
+
+      <div class="footer">Framer QA &nbsp;·&nbsp; {date_str}</div>
+
     </div>
-    {sim_html}
-  </div>
+  </main>
 
-  {site_seo_html}
-
-  <!-- SEO Checks Table -->
-  <div class="section">
-    <div class="section-title"><span class="section-icon">📋</span> Page-level SEO</div>
-    <div class="table-wrap">
-      <table>
-        <thead>
-          <tr>
-            <th>Page</th>
-            {seo_headers}
-          </tr>
-        </thead>
-        <tbody>
-          {seo_table_rows}
-        </tbody>
-      </table>
-    </div>
-  </div>
-
-  <!-- Visual Comparison -->
-  <div class="section">
-    <div class="section-title"><span class="section-icon">🎨</span> Visual Comparison — Live vs Figma</div>
-    {pages_html}
-  </div>
-
-</div>
-
-<div class="footer">
-  Framer QA Agent &nbsp;·&nbsp; Report generated {date_str}
 </div>
 
 <script>
+  // Copy shareable link
+  function copyReportLink(btn) {{
+    // If inside an iframe, build the full URL from the parent
+    const url = window.self !== window.top
+      ? window.location.href
+      : window.location.href;
+    navigator.clipboard.writeText(url).then(() => {{
+      const orig = btn.innerHTML;
+      btn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg> Copied!';
+      btn.style.color = '#10b981';
+      setTimeout(() => {{ btn.innerHTML = orig; btn.style.color = ''; }}, 2000);
+    }}).catch(() => {{
+      // Fallback for browsers that block clipboard in iframes
+      const ta = document.createElement('textarea');
+      ta.value = url;
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand('copy');
+      document.body.removeChild(ta);
+      btn.textContent = 'Copied!';
+      setTimeout(() => {{ btn.textContent = 'Copy Link'; }}, 2000);
+    }});
+  }}
+
   // Save as PDF
   function savePDF() {{
     // Expand all cards first so nothing is clipped in the PDF
     document.querySelectorAll('.page-card').forEach(c => c.classList.add('open'));
-    // If we're inside an iframe (the dashboard embeds the report),
-    // window.print() is blocked by the browser — open in a new tab instead.
     if (window.self !== window.top) {{
-      window.open(window.location.href, '_blank');
+      // Inside an iframe — open in new tab with ?autoprint=1 so it prints automatically
+      const sep = window.location.href.includes('?') ? '&' : '?';
+      window.open(window.location.href + sep + 'autoprint=1', '_blank');
     }} else {{
       window.print();
     }}
   }}
+
+  // Auto-print if ?autoprint=1 is in the URL (triggered from iframe)
+  if (new URLSearchParams(window.location.search).get('autoprint') === '1') {{
+    document.querySelectorAll('.page-card').forEach(c => c.classList.add('open'));
+    window.addEventListener('load', () => setTimeout(() => window.print(), 800));
+  }}
+
+  // Sidebar scroll-spy — highlight nav item matching the nearest section
+  const mainEl = document.querySelector('.main-content');
+  const navLinks = document.querySelectorAll('.sidebar-nav .nav-item[href^="#"]');
+  function updateActivNav() {{
+    let current = null;
+    navLinks.forEach(a => {{
+      const target = document.querySelector(a.getAttribute('href'));
+      if (target) {{
+        const rect = target.getBoundingClientRect();
+        const containerTop = mainEl.getBoundingClientRect().top;
+        if (rect.top - containerTop <= 80) current = a;
+      }}
+    }});
+    navLinks.forEach(a => a.classList.remove('active'));
+    if (current) current.classList.add('active');
+  }}
+  mainEl && mainEl.addEventListener('scroll', updateActivNav);
+  updateActivNav();
 
   // Page card accordion
   document.querySelectorAll('.page-card-header').forEach(header => {{
@@ -786,32 +1004,36 @@ def _render_html(*, site_url, date_str, total_pages, total_pass, total_warn,
     }});
   }});
 
-  // Viewport tabs
-  document.querySelectorAll('.vp-tab').forEach(tab => {{
-    tab.addEventListener('click', () => {{
-      const group = tab.closest('.vp-tabs').dataset.group;
-      document.querySelectorAll(`[data-group="${{group}}"].vp-tab`)
-        .forEach(t => t.classList.remove('active'));
-      document.querySelectorAll(`[data-group="${{group}}"].vp-panel`)
-        .forEach(p => p.classList.remove('active'));
-      tab.classList.add('active');
-      document.querySelector(`[data-group="${{group}}"][data-vp="${{tab.dataset.vp}}"].vp-panel`)
-        .classList.add('active');
-    }});
+  // Viewport tabs — event delegation so tabs in collapsed cards work on open
+  document.addEventListener('click', e => {{
+    const tab = e.target.closest('.vp-tab');
+    if (!tab) return;
+    const vpTabs = tab.closest('.vp-tabs');
+    if (!vpTabs) return;
+    const group = vpTabs.dataset.group;
+    document.querySelectorAll(`[data-group="${{group}}"].vp-tab`)
+      .forEach(t => t.classList.remove('active'));
+    document.querySelectorAll(`[data-group="${{group}}"].vp-panel`)
+      .forEach(p => p.classList.remove('active'));
+    tab.classList.add('active');
+    const target = document.querySelector(`[data-group="${{group}}"][data-vp="${{tab.dataset.vp}}"].vp-panel`);
+    if (target) target.classList.add('active');
   }});
 
-  // Image view tabs (Live / Figma / Diff)
-  document.querySelectorAll('.img-tab').forEach(tab => {{
-    tab.addEventListener('click', () => {{
-      const group = tab.closest('.img-view-tabs').dataset.group;
-      document.querySelectorAll(`[data-group="${{group}}"].img-tab`)
-        .forEach(t => t.classList.remove('active'));
-      document.querySelectorAll(`[data-group="${{group}}"].img-panel`)
-        .forEach(p => p.classList.remove('active'));
-      tab.classList.add('active');
-      document.querySelector(`[data-group="${{group}}"][data-view="${{tab.dataset.view}}"].img-panel`)
-        .classList.add('active');
-    }});
+  // Image view tabs — event delegation so tabs in collapsed/inactive panels work correctly
+  document.addEventListener('click', e => {{
+    const tab = e.target.closest('.img-tab');
+    if (!tab) return;
+    const viewTabs = tab.closest('.img-view-tabs');
+    if (!viewTabs) return;
+    const group = viewTabs.dataset.group;
+    document.querySelectorAll(`[data-group="${{group}}"].img-tab`)
+      .forEach(t => t.classList.remove('active'));
+    document.querySelectorAll(`[data-group="${{group}}"].img-panel`)
+      .forEach(p => p.classList.remove('active'));
+    tab.classList.add('active');
+    const target = document.querySelector(`[data-group="${{group}}"][data-view="${{tab.dataset.view}}"].img-panel`);
+    if (target) target.classList.add('active');
   }});
 
   // Open first page card by default
@@ -819,6 +1041,8 @@ def _render_html(*, site_url, date_str, total_pages, total_pass, total_warn,
   if (firstCard) firstCard.classList.add('open');
 
   // ── Compare sliders (Live vs Figma) ──────────────────────────────────────
+  const mainScroll = document.querySelector('.main-content') || window;
+
   document.querySelectorAll('.compare-container').forEach(container => {{
     const topImg  = container.querySelector('.compare-top');
     const line    = container.querySelector('.compare-line');
@@ -828,10 +1052,29 @@ def _render_html(*, site_url, date_str, total_pages, total_pass, total_warn,
     function update(clientX) {{
       const rect = container.getBoundingClientRect();
       const pct  = Math.max(1, Math.min(99, (clientX - rect.left) / rect.width * 100));
-      topImg.style.clipPath   = `inset(0 ${{100 - pct}}% 0 0)`;
-      line.style.left         = `${{pct}}%`;
-      knob.style.left         = `${{pct}}%`;
+      topImg.style.clipPath = `inset(0 ${{100 - pct}}% 0 0)`;
+      line.style.left       = `${{pct}}%`;
+      knob.style.left       = `${{pct}}%`;
     }}
+
+    // Keep knob vertically centered in the visible portion of the container
+    function updateKnobY() {{
+      const cRect   = container.getBoundingClientRect();
+      const scrollEl = (mainScroll === window) ? document.documentElement : mainScroll;
+      const viewTop  = (mainScroll === window) ? 0 : mainScroll.getBoundingClientRect().top;
+      const viewBot  = (mainScroll === window) ? window.innerHeight : mainScroll.getBoundingClientRect().bottom;
+      const visTop   = Math.max(cRect.top,    viewTop);
+      const visBot   = Math.min(cRect.bottom, viewBot);
+      if (visBot <= visTop) return;
+      // Convert viewport-relative center to container-relative top
+      const centerInContainer = (visTop + visBot) / 2 - cRect.top;
+      knob.style.top       = centerInContainer + 'px';
+      knob.style.transform = 'translateX(-50%)';
+    }}
+
+    mainScroll.addEventListener('scroll', updateKnobY, {{passive: true}});
+    window.addEventListener('resize', updateKnobY);
+    updateKnobY();
 
     container.addEventListener('mousedown',  e => {{ dragging = true;  update(e.clientX); e.preventDefault(); }});
     window.addEventListener   ('mousemove',  e => {{ if (dragging) update(e.clientX); }});
@@ -889,11 +1132,11 @@ def _render_page(result: dict, viewports: list[dict], output_dir: str) -> str:
     warn_count = seo["warn_count"]
     seo_badge  = ""
     if fail_count:
-        seo_badge = f'<span class="badge fail">{fail_count} issue{"s" if fail_count != 1 else ""}</span>'
+        seo_badge = f'<span class="badge fail">SEO: {fail_count} issue{"s" if fail_count != 1 else ""}</span>'
     elif warn_count:
-        seo_badge = f'<span class="badge warn">{warn_count} warning{"s" if warn_count != 1 else ""}</span>'
+        seo_badge = f'<span class="badge warn">SEO: {warn_count} warning{"s" if warn_count != 1 else ""}</span>'
     else:
-        seo_badge = '<span class="badge pass">SEO OK</span>'
+        seo_badge = ''
 
     return f"""
 <div class="page-card" id="page-{safe_id}">
@@ -987,10 +1230,6 @@ def _render_vp_panel(vp_result: dict, idx: int, group_id: str, safe_id: str, act
         annotations_html = _render_annotations(annotations)
         img_panels += f'<div class="img-panel" data-group="{view_group}" data-view="diff"><img class="screenshot" src="{diff_rel}" alt="Pixel diff" loading="lazy">{annotations_html}</div>\n'
 
-    no_figma_msg = ""
-    if not has_figma:
-        no_figma_msg = '<div class="no-figma" style="margin-top:12px">No Figma frame mapped for this page.<br>Add a node ID in the Frame Mappings to enable comparison.</div>'
-
     return f"""
 <div class="vp-panel {active}" data-group="{group_id}" data-vp="{idx}">
   {sim_badge}
@@ -998,7 +1237,6 @@ def _render_vp_panel(vp_result: dict, idx: int, group_id: str, safe_id: str, act
   <div class="img-panels">
     {img_panels}
   </div>
-  {no_figma_msg}
 </div>"""
 
 
@@ -1057,18 +1295,20 @@ def _render_site_seo_section(site_seo: dict) -> str:
               <div class="favicon-bg favicon-bg-black"><img src="{value}" alt="favicon on black bg"></div>
             </div>'''
         elif name == "Social Preview Image" and value:
-            extra = f'<div class="og-image-preview" style="margin-left:16px"><img src="{value}" alt="OG / Social Preview image" loading="lazy"></div>'
+            extra = f'<img src="{value}" alt="OG / Social Preview image" loading="lazy" style="width:100%;border-radius:8px;margin-top:6px;object-fit:cover">'
         elif name == "Meta Title" and value:
             highlighted = _render_char_highlighted(value, 60)
             extra = f'<div class="site-check-value" style="color:var(--text)">{highlighted}</div>'
         elif name == "Meta Description" and value:
             highlighted = _render_char_highlighted(value, 160)
             extra = f'<div class="site-check-value" style="color:var(--text)">{highlighted}</div>'
-        elif value:
+        elif name == "Site Language" and value:
+            extra = f'<div class="site-check-value" style="font-size:22px;font-weight:700;color:var(--text);letter-spacing:-0.5px">{value}</div>'
+        elif value and value != detail:
             truncated = (value[:100] + "…") if len(value) > 100 else value
             extra = f'<div class="site-check-value">{truncated}</div>'
 
-        # Card width: OG image = full row, Meta Description = 2 cols, rest = 1 col
+        # Card layout: OG image = 1 col but spans 2 rows, Meta Description = 2 cols, rest = 1 col
         if name == "Social Preview Image":
             card_class = "site-check-card og-image-card"
         elif name == "Meta Description":
@@ -1143,8 +1383,9 @@ def _render_seo_row(result: dict) -> str:
               <div style="font-size:12px;line-height:1.5">{highlighted}</div>
             </td>\n'''
         else:
-            tip = (detail + (" — " + value[:80] if value else "")).replace('"', "&quot;")
-            cells += f'<td><span class="badge {status}" title="{tip}">{icon}</span></td>\n'
+            value_str = str(value)[:80] if value else ""
+            tip = (detail + (" — " + value_str if value_str and value_str not in detail else "")).replace('"', "&quot;")
+            cells += f'<td><span class="badge {status}" data-tip="{tip}">{icon}</span></td>\n'
 
     return f"""<tr>
   <td class="page-url"><a href="{url}" target="_blank">{path}</a></td>

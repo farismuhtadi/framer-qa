@@ -3,40 +3,28 @@ reporter.py — Generates a self-contained HTML QA report.
 
 The report includes:
   • Summary dashboard (pass rate, issue count)
+  • Site-level SEO checks (language, favicon, social preview)
   • Per-page SEO/meta checklist table
-  • Visual comparison section with Live / Figma / Diff tabs per viewport
 """
 
 import os
-import json
-from datetime import datetime
-from modules.comparator import similarity_label, similarity_color
+from datetime import datetime, timezone
 
 
 def generate_report(results: list[dict], config: dict, output_dir: str, timestamp: str,
                     site_seo: dict | None = None) -> str:
-    """
-    Generates the HTML report and returns its file path.
-    """
+    """Generates the HTML report and returns its file path."""
     report_path = os.path.join(output_dir, "report.html")
 
     site_url    = config["site_url"]
-    viewports   = config["viewports"]
-    date_str    = datetime.now().strftime("%B %d, %Y at %H:%M")
+    now         = datetime.now(timezone.utc)
+    utc_iso     = now.strftime("%Y-%m-%dT%H:%M:%SZ")
+    date_str    = "<span class=\"report-date\" data-utc=\"" + utc_iso + "\"></span>"
     total_pages = len(results)
 
-    # Page-level SEO aggregate stats
-    total_pass   = sum(r["seo"]["pass_count"] for r in results)
-    total_warn   = sum(r["seo"]["warn_count"] for r in results)
-    total_fail   = sum(r["seo"]["fail_count"] for r in results)
-
-    # Visual comparison stats
-    all_similarities = []
-    for r in results:
-        for vp_data in r.get("viewports", []):
-            if vp_data.get("similarity") is not None:
-                all_similarities.append(vp_data["similarity"])
-    avg_similarity = sum(all_similarities) / len(all_similarities) if all_similarities else None
+    total_pass = sum(r["seo"]["pass_count"] for r in results)
+    total_warn = sum(r["seo"]["warn_count"] for r in results)
+    total_fail = sum(r["seo"]["fail_count"] for r in results)
 
     html = _render_html(
         site_url=site_url,
@@ -45,10 +33,7 @@ def generate_report(results: list[dict], config: dict, output_dir: str, timestam
         total_pass=total_pass,
         total_warn=total_warn,
         total_fail=total_fail,
-        avg_similarity=avg_similarity,
         results=results,
-        viewports=viewports,
-        output_dir=output_dir,
         site_seo=site_seo,
     )
 
@@ -63,42 +48,50 @@ def generate_report(results: list[dict], config: dict, output_dir: str, timestam
 # ══════════════════════════════════════════════════════════════════════════════
 
 def _render_html(*, site_url, date_str, total_pages, total_pass, total_warn,
-                 total_fail, avg_similarity, results, viewports, output_dir, site_seo=None):
+                 total_fail, results, site_seo=None):
 
-    pages_html = "\n".join(_render_page(r, viewports, output_dir) for r in results)
-
-    # Safe key for localStorage (strip protocol + special chars)
     site_url_safe = site_url.replace("https://", "").replace("http://", "").replace("/", "_").replace(".", "_").replace("-", "_")
+
+    # Score & summary sentence
+    total_checks = total_pass + total_warn + total_fail
+    score = round((total_pass + total_warn * 0.5) / total_checks * 100) if total_checks else 100
+    if total_fail == 0 and total_warn == 0:
+        summary_sentence = "Everything looks great — all checks passed."
+        summary_color = "var(--pass)"
+    elif total_fail == 0:
+        summary_sentence = f"Looking good — {total_warn} warning{'s' if total_warn != 1 else ''} to review."
+        summary_color = "var(--warn)"
+    elif total_fail <= 3:
+        summary_sentence = f"Needs attention — {total_fail} issue{'s' if total_fail != 1 else ''} and {total_warn} warning{'s' if total_warn != 1 else ''} found."
+        summary_color = "var(--fail)"
+    else:
+        summary_sentence = f"Issues detected — {total_fail} critical issues need fixing."
+        summary_color = "var(--fail)"
 
     seo_table_rows = "\n".join(_render_seo_row(r) for r in results)
     seo_check_names = []
-    for r in results:  # use first result that actually has checks (homepage may fail)
+    for r in results:
         names = [c["name"] for c in (r.get("seo") or {}).get("checks") or []]
         if names:
             seo_check_names = names
             break
     seo_headers = "\n".join(f"<th>{name}</th>" for name in seo_check_names)
 
-    sim_html = ""
-    if avg_similarity is not None:
-        color = similarity_color(avg_similarity)
-        sim_html = f'<div class="stat-card card-sim"><div class="stat-value neutral">{avg_similarity:.1f}%</div><div class="stat-label">Avg Visual Match</div></div>'
-
-    pass_pct = round(total_pass / max(total_pass + total_fail, 1) * 100)
-
     site_seo_html = _render_site_seo_section(site_seo) if site_seo else ""
 
     # Sidebar navigation links for each page
     def _sidebar_page_link(r):
-        path    = r.get("path", "/") or "/"
-        sid     = path.strip("/").replace("/", "_") or "home"
-        label   = path if path != "/" else "/"
-        seo     = r.get("seo", {})
-        dot_color = "#dc2626" if seo.get("fail_count") else ("#d97706" if seo.get("warn_count") else "#16a34a")
+        path      = r.get("path", "/") or "/"
+        sid       = path.strip("/").replace("/", "_") or "home"
+        label     = path if path != "/" else "/"
+        seo       = r.get("seo", {})
+        dot_color = "#f04438" if seo.get("fail_count") else ("#f79009" if seo.get("warn_count") else "#12b76a")
         return (f'<a href="#page-{sid}" class="nav-item">'
                 f'<span class="nav-dot" style="background:{dot_color}"></span>'
                 f'{label}</a>')
     sidebar_links = "\n".join(_sidebar_page_link(r) for r in results)
+
+    pages_html = "\n".join(_render_page(r) for r in results)
 
     return f"""<!DOCTYPE html>
 <html lang="en">
@@ -106,6 +99,7 @@ def _render_html(*, site_url, date_str, total_pages, total_pass, total_warn,
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Framer QA Report — {site_url}</title>
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg width='250' height='250' viewBox='0 0 250 250' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Crect width='250' height='250' rx='48' fill='%23070707'/%3E%3Cpath d='M175.24 94.6419C175.24 63.3188 154.171 54 113.301 54H69V195H93.3096V135.636H116.898C119.418 135.636 121.846 135.636 124.192 135.452L153.541 194.992H181L149.131 130.977C166.595 124.949 175.24 112.709 175.24 94.6335V94.6419ZM117.528 116.008H93.4008V73.813H116.724C135.903 73.813 150.308 76.3736 150.308 94.8182C150.308 111.71 138.423 116.008 117.536 116.008H117.528Z' fill='%23FAFAFA'/%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -131,17 +125,16 @@ def _render_html(*, site_url, date_str, total_pages, total_pass, total_warn,
     --warn-text:    #b54708;
     --fail-light:   #fef3f2;
     --fail-text:    #b42318;
-    --shadow-sm:    0 1px 3px rgba(16,24,40,.06), 0 1px 2px rgba(16,24,40,.04);
-    --shadow:       0 4px 16px rgba(16,24,40,.08), 0 1px 4px rgba(16,24,40,.04);
+    --shadow-sm:    0 2px 8px rgba(16,24,40,.03), 0 1px 3px rgba(16,24,40,.02);
+    --shadow:       0 8px 28px rgba(16,24,40,.04), 0 2px 8px rgba(16,24,40,.03);
     --radius:       12px;
   }}
   * {{ box-sizing: border-box; margin: 0; padding: 0; }}
-  html, body {{ height: 100%; }}
+  html, body {{ height: 100%; margin: 0; }}
   body {{
-    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-    background: #eaecf0;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+    background: var(--shell-bg);
     min-height: 100vh;
-    padding: 20px;
     color: var(--text);
     font-size: 14px;
     line-height: 1.6;
@@ -153,13 +146,9 @@ def _render_html(*, site_url, date_str, total_pages, total_pass, total_warn,
   /* ── App Shell ── */
   .app-shell {{
     display: flex;
-    height: calc(100vh - 40px);
-    max-width: 1480px;
-    margin: 0 auto;
+    height: 100vh;
     background: var(--shell-bg);
-    border-radius: 20px;
     overflow: hidden;
-    box-shadow: 0 24px 64px rgba(16,24,40,.10), 0 0 0 1px rgba(16,24,40,.06);
   }}
 
   /* ── Sidebar ── */
@@ -181,14 +170,11 @@ def _render_html(*, site_url, date_str, total_pages, total_pass, total_warn,
   }}
   .sidebar-logo {{
     width: 32px; height: 32px;
-    background: var(--accent);
     border-radius: 9px;
-    display: flex; align-items: center; justify-content: center;
-    font-size: 16px;
+    overflow: hidden;
     flex-shrink: 0;
     cursor: pointer;
     transition: opacity .15s;
-    box-shadow: 0 1px 4px rgba(16,24,40,.2);
   }}
   .sidebar-logo:hover {{ opacity: 0.8; }}
   .sidebar-brand-name {{
@@ -200,11 +186,19 @@ def _render_html(*, site_url, date_str, total_pages, total_pass, total_warn,
     border-bottom: 1px solid var(--border2);
   }}
   .sidebar-site {{
-    font-size: 11.5px; font-weight: 500;
+    display: inline-flex; align-items: center;
+    font-size: 11px; font-weight: 500;
     color: var(--accent);
+    background: var(--accent-light);
+    border: 1px solid rgba(16,24,40,.08);
+    border-radius: 20px;
+    padding: 3px 10px;
+    max-width: 100%;
     white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-    margin-bottom: 2px;
+    margin-bottom: 6px;
+    text-decoration: none;
   }}
+  .sidebar-site:hover {{ opacity: 0.8; text-decoration: none; }}
   .sidebar-date {{
     font-size: 10.5px;
     color: var(--muted2);
@@ -272,19 +266,20 @@ def _render_html(*, site_url, date_str, total_pages, total_pass, total_warn,
     max-width: 1100px;
   }}
 
-  /* ── Page title ── */
+  /* ── Page heading ── */
   .page-heading {{
     margin-bottom: 28px;
   }}
   .page-heading h2 {{
     font-size: 22px; font-weight: 800;
-    color: var(--text); letter-spacing: -0.5px;
+    color: var(--text); letter-spacing: -0.4px;
     margin-bottom: 4px;
   }}
   .page-heading .sub {{
     font-size: 13px; color: var(--muted);
   }}
   .page-heading .sub a {{ color: var(--accent); }}
+  .summary-sentence {{ font-size: 14px; font-weight: 500; margin-top: 8px; letter-spacing: -0.1px; }}
 
   /* ── Summary Cards ── */
   .summary {{
@@ -301,7 +296,7 @@ def _render_html(*, site_url, date_str, total_pages, total_pass, total_warn,
     box-shadow: var(--shadow-sm);
   }}
   .stat-value {{
-    font-size: 30px; font-weight: 800;
+    font-size: 30px; font-weight: 600;
     line-height: 1; margin-bottom: 6px;
     letter-spacing: -1px;
   }}
@@ -317,7 +312,7 @@ def _render_html(*, site_url, date_str, total_pages, total_pass, total_warn,
   /* ── Section ── */
   .section {{ margin-bottom: 36px; }}
   .section-title {{
-    font-size: 11px; font-weight: 700;
+    font-size: 11px; font-weight: 700; letter-spacing: -0.1px;
     margin-bottom: 14px;
     color: var(--muted2);
     display: flex; align-items: center; gap: 8px;
@@ -383,7 +378,7 @@ def _render_html(*, site_url, date_str, total_pages, total_pass, total_warn,
   .badge.warn {{ background: var(--warn-light); color: var(--warn-text); }}
   .badge.fail {{ background: var(--fail-light); color: var(--fail-text); }}
 
-  /* ── Instant custom tooltip (replaces native title delay) ── */
+  /* ── Instant custom tooltip ── */
   .badge[data-tip]::after {{
     content: attr(data-tip);
     position: absolute;
@@ -401,7 +396,7 @@ def _render_html(*, site_url, date_str, total_pages, total_pass, total_warn,
     word-break: break-word;
     padding: 5px 9px;
     border-radius: 6px;
-    box-shadow: 0 4px 12px rgba(0,0,0,.25);
+    box-shadow: 0 6px 20px rgba(0,0,0,.07);
     pointer-events: none;
     opacity: 0;
     transition: opacity .1s;
@@ -411,7 +406,7 @@ def _render_html(*, site_url, date_str, total_pages, total_pass, total_warn,
     opacity: 1;
   }}
 
-  /* ── Page Cards (Visual Comparison) ── */
+  /* ── Page Cards ── */
   .page-card {{
     background: var(--surface);
     border: 1px solid var(--border);
@@ -437,99 +432,14 @@ def _render_html(*, site_url, date_str, total_pages, total_pass, total_warn,
   .page-card-header h3 {{ font-size: 13.5px; font-weight: 600; color: var(--text); letter-spacing: -0.1px; }}
   .page-card-header .url {{ color: var(--muted2); font-size: 11px; margin-top: 1px; }}
   .chevron {{ color: var(--muted2); transition: transform .2s; }}
+  .chevron {{ transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1); }}
   .page-card.open .chevron {{ transform: rotate(180deg); }}
-  .page-card-body {{ display: none; padding: 18px; }}
-  .page-card.open .page-card-body {{ display: block; }}
-
-  /* ── Viewport Tabs ── */
-  .vp-tabs {{
-    display: flex;
-    gap: 4px;
-    margin-bottom: 16px;
-    background: var(--subtle);
-    padding: 3px;
-    border-radius: 8px;
-    width: fit-content;
-    border: 1px solid var(--border2);
+  .page-card-body {{
+    height: 0;
+    overflow: hidden;
+    transition: height 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   }}
-  .vp-tab {{
-    padding: 4px 13px;
-    border-radius: 6px;
-    border: none;
-    background: transparent;
-    color: var(--muted);
-    cursor: pointer;
-    font-size: 12px;
-    font-weight: 500;
-    transition: background .15s, color .15s;
-    letter-spacing: 0.01em;
-    font-family: inherit;
-  }}
-  .vp-tab:hover {{ color: var(--text); background: rgba(0,0,0,.04); }}
-  .vp-tab.active {{
-    background: var(--surface);
-    color: var(--accent);
-    font-weight: 600;
-    box-shadow: var(--shadow-sm);
-  }}
-
-  .vp-panel {{ display: none; }}
-  .vp-panel.active {{ display: block; }}
-
-  /* ── Image Comparison ── */
-  .img-view-tabs {{
-    display: flex;
-    gap: 6px;
-    margin-bottom: 12px;
-  }}
-  .img-tab {{
-    padding: 4px 12px;
-    border-radius: 6px;
-    border: 1px solid var(--border);
-    background: transparent;
-    color: var(--muted);
-    cursor: pointer;
-    font-size: 12px;
-    font-weight: 500;
-    transition: all .15s;
-  }}
-  .img-tab:hover {{ border-color: var(--accent); color: var(--accent); }}
-  .img-tab.active {{ background: var(--accent-light); border-color: var(--accent); color: var(--accent); font-weight: 600; }}
-
-  .img-panels {{ position: relative; }}
-  .img-panel {{ display: none; }}
-  .img-panel.active {{ display: block; }}
-
-  .screenshot {{
-    width: 100%;
-    border: 1px solid var(--border);
-    border-radius: 8px;
-    display: block;
-  }}
-
-  .sim-badge {{
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    padding: 4px 12px;
-    border-radius: 20px;
-    font-size: 12px;
-    font-weight: 600;
-    margin-bottom: 12px;
-  }}
-
-  .no-figma {{
-    background: var(--subtle);
-    border: 1px dashed var(--border);
-    border-radius: 8px;
-    padding: 32px;
-    text-align: center;
-    color: var(--muted);
-    font-size: 13px;
-  }}
-
-  /* ── Tooltip ── */
-  [title] {{ cursor: help; }}
+  .page-card-body-inner {{ padding: 18px; }}
 
   /* ── Site-level checks grid ── */
   .site-checks-grid {{
@@ -547,23 +457,21 @@ def _render_html(*, site_url, date_str, total_pages, total_pass, total_warn,
     display: flex;
     flex-direction: column;
     gap: 6px;
+    min-width: 0;
+    overflow-wrap: break-word;
+    word-break: break-word;
   }}
   .site-check-card:hover {{ box-shadow: var(--shadow); border-color: #c4c9d4; }}
-  .site-check-card.og-image-card {{
-    grid-column: span 1;
-    grid-row: span 2;
-  }}
   .site-check-card.wide-card {{
     grid-column: span 2;
   }}
-  @media (max-width: 700px) {{
+  @media (max-width: 900px) {{
     .site-checks-grid {{ grid-template-columns: repeat(2, 1fr); }}
-    .site-check-card.og-image-card {{ grid-row: span 1; }}
+    .site-check-card.wide-card {{ grid-column: span 2; }}
   }}
-  @media (max-width: 480px) {{
+  @media (max-width: 560px) {{
     .site-checks-grid {{ grid-template-columns: 1fr; }}
-    .site-check-card.wide-card,
-    .site-check-card.og-image-card {{ grid-column: span 1; grid-row: span 1; }}
+    .site-check-card.wide-card {{ grid-column: span 1; }}
   }}
   .site-check-header {{
     display: flex;
@@ -593,7 +501,6 @@ def _render_html(*, site_url, date_str, total_pages, total_pass, total_warn,
     line-height: 1.5;
     padding-left: 16px;
   }}
-  /* Favicon swatch */
   .favicon-preview {{
     display: flex;
     gap: 8px;
@@ -612,7 +519,6 @@ def _render_html(*, site_url, date_str, total_pages, total_pass, total_warn,
   .favicon-bg-white {{ background: #ffffff; box-shadow: inset 0 0 0 1px #e5e7eb; }}
   .favicon-bg-black {{ background: #111111; }}
   .favicon-bg img {{ width: 32px; height: 32px; object-fit: contain; }}
-  /* OG image preview */
   .og-image-preview {{
     margin-top: 10px;
     border-radius: 8px;
@@ -626,145 +532,45 @@ def _render_html(*, site_url, date_str, total_pages, total_pass, total_warn,
     max-height: 315px;
     object-fit: cover;
   }}
-  /* Character over-limit highlight */
   .char-over {{
-    color: #dc2626;
+    color: #f04438;
     background: #fee2e2;
     border-radius: 2px;
     padding: 0 1px;
   }}
 
-  /* ── Compare Slider ── */
-  .compare-container {{
-    position: relative;
-    overflow: hidden;
-    border-radius: 8px;
-    border: 1px solid var(--border);
-    cursor: col-resize;
-    user-select: none;
-    -webkit-user-select: none;
-  }}
-  .compare-base {{
-    width: 100%;
-    display: block;
-  }}
-  .compare-top {{
-    position: absolute;
-    top: 0; left: 0;
-    width: 100%;
-    display: block;
-    clip-path: inset(0 50% 0 0);
-    pointer-events: none;
-  }}
-  .compare-line {{
-    position: absolute;
-    top: 0; left: 50%;
-    transform: translateX(-50%);
-    width: 2px;
-    height: 100%;
-    background: #fff;
-    box-shadow: 0 0 6px rgba(0,0,0,.45);
-    pointer-events: none;
-  }}
-  .compare-knob {{
-    position: absolute;
-    top: 50%; left: 50%;
-    transform: translate(-50%, -50%);
-    width: 38px; height: 38px;
-    background: #fff;
-    border-radius: 50%;
-    box-shadow: 0 2px 10px rgba(0,0,0,.3);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    pointer-events: none;
-    z-index: 10;
-  }}
-  .compare-label {{
-    position: absolute;
-    bottom: 10px;
-    background: rgba(0,0,0,.55);
-    color: #fff;
-    font-size: 10.5px;
-    font-weight: 700;
-    letter-spacing: .4px;
-    padding: 3px 9px;
-    border-radius: 4px;
-    pointer-events: none;
-    text-transform: uppercase;
-  }}
-
-  /* ── CSS Annotations ── */
-  .annotations {{
-    margin-top: 14px;
+  /* ── Per-page check list ── */
+  .check-list {{
     display: flex;
     flex-direction: column;
+    gap: 0;
+  }}
+  .check-row {{
+    display: flex;
+    align-items: baseline;
     gap: 8px;
+    padding: 9px 0;
+    border-bottom: 1px solid var(--border);
+    font-size: 13px;
+    line-height: 1.4;
   }}
-  .ann-title {{
-    font-size: 11px;
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: .5px;
-    color: var(--muted);
-    margin-bottom: 2px;
-  }}
-  .ann-item {{
-    display: flex;
-    gap: 10px;
-    align-items: flex-start;
-    background: var(--subtle);
-    border: 1px solid var(--border);
-    border-radius: 8px;
-    padding: 10px 14px;
-    font-size: 12.5px;
-  }}
-  .ann-badge {{
+  .check-row:last-child {{ border-bottom: none; }}
+  .check-icon {{ flex-shrink: 0; font-size: 13px; width: 18px; }}
+  .check-name {{
+    font-weight: 500;
+    color: var(--text);
+    min-width: 140px;
     flex-shrink: 0;
-    width: 22px; height: 22px;
-    border-radius: 50%;
-    background: #fb923c;
-    color: #fff;
-    font-weight: 700;
-    font-size: 11px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    margin-top: 1px;
   }}
-  .ann-body {{ flex: 1; min-width: 0; }}
-  .ann-selector {{
-    font-family: 'SFMono-Regular', 'Consolas', monospace;
+  .check-detail {{ color: var(--muted); flex: 1; }}
+  .check-value {{
     font-size: 12px;
-    color: var(--accent);
-    font-weight: 600;
-    margin-bottom: 4px;
-  }}
-  .ann-text {{
     color: var(--muted);
-    font-size: 11.5px;
-    margin-bottom: 5px;
-    font-style: italic;
-    white-space: nowrap;
+    max-width: 320px;
     overflow: hidden;
     text-overflow: ellipsis;
-  }}
-  .ann-props {{
-    display: flex;
-    flex-wrap: wrap;
-    gap: 4px;
-  }}
-  .ann-prop {{
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 4px;
-    padding: 2px 7px;
-    font-size: 11px;
-    font-family: 'SFMono-Regular', 'Consolas', monospace;
-    color: var(--text);
     white-space: nowrap;
   }}
-  .ann-prop span {{ color: var(--muted); }}
 
   /* ── Footer ── */
   .footer {{
@@ -776,57 +582,18 @@ def _render_html(*, site_url, date_str, total_pages, total_pass, total_warn,
     letter-spacing: .1px;
   }}
 
-  /* ── Per-page notes ── */
-  .page-notes-wrapper {{
-    margin-top: 20px;
-    padding-top: 16px;
-    border-top: 1px solid var(--border);
-  }}
-  .page-notes-label {{
-    font-size: 11.5px;
-    font-weight: 600;
-    color: var(--muted);
-    text-transform: uppercase;
-    letter-spacing: .5px;
-    margin-bottom: 6px;
-  }}
-  .page-notes {{
-    min-height: 64px;
-    padding: 10px 14px;
-    border: 1px solid var(--border);
-    border-radius: 8px;
-    background: var(--subtle);
-    font-size: 13px;
-    color: var(--text);
-    outline: none;
-    line-height: 1.6;
-    font-family: inherit;
-    transition: border-color .15s, background .15s;
-  }}
-  .page-notes:focus {{ border-color: var(--accent); background: #ffffff; }}
-  .page-notes:empty:before {{
-    content: attr(data-placeholder);
-    color: var(--muted);
-    pointer-events: none;
-  }}
-
-  /* ── Print media ── */
+  /* ── Print ── */
   @media print {{
-    body {{ background: white !important; padding: 0; }}
-    .app-shell {{ height: auto; box-shadow: none; border-radius: 0; display: block; }}
+    body {{ background: white !important; }}
+    .app-shell {{ height: auto; display: block; }}
     .sidebar {{ display: none !important; }}
     .main-content {{ overflow: visible; }}
     .main-inner {{ padding: 24px; max-width: 100%; }}
     .sidebar-btn {{ display: none !important; }}
-    .vp-tabs, .img-view-tabs {{ display: none !important; }}
-    .page-card-body {{ display: block !important; }}
+    .page-card-body {{ height: auto !important; }}
     .page-card {{ break-inside: avoid; margin-bottom: 24px; box-shadow: none; }}
-    .vp-panel {{ display: block !important; }}
-    .img-panel {{ display: block !important; margin-bottom: 8px; }}
-    .screenshot {{ max-height: 400px; object-fit: contain; }}
     .stat-card {{ break-inside: avoid; print-color-adjust: exact; -webkit-print-color-adjust: exact; }}
     .summary {{ grid-template-columns: repeat(4, 1fr); }}
-    .page-notes-wrapper {{ display: none; }}
     .site-checks-grid {{ grid-template-columns: repeat(3, 1fr); }}
   }}
 </style>
@@ -838,11 +605,11 @@ def _render_html(*, site_url, date_str, total_pages, total_pass, total_warn,
   <!-- ── Sidebar ── -->
   <aside class="sidebar">
     <div class="sidebar-brand">
-      <div class="sidebar-logo" onclick="window.location.href='/'" title="Back to Framer QA">🔍</div>
+      <div class="sidebar-logo" onclick="window.location.href='/'" title="Back to Framer QA"><svg width="32" height="32" viewBox="0 0 250 250" fill="none" xmlns="http://www.w3.org/2000/svg"><rect width="250" height="250" fill="#070707"/><path d="M175.24 94.6419C175.24 63.3188 154.171 54 113.301 54H69V195H93.3096V135.636H116.898C119.418 135.636 121.846 135.636 124.192 135.452L153.541 194.992H181L149.131 130.977C166.595 124.949 175.24 112.709 175.24 94.6335V94.6419ZM117.528 116.008H93.4008V73.813H116.724C135.903 73.813 150.308 76.3736 150.308 94.8182C150.308 111.71 138.423 116.008 117.536 116.008H117.528Z" fill="#FAFAFA"/></svg></div>
       <span class="sidebar-brand-name">Framer QA</span>
     </div>
     <div class="sidebar-meta">
-      <div class="sidebar-site"><a href="{site_url}" target="_blank" style="color:var(--accent);text-decoration:none">{site_url}</a></div>
+      <a href="{site_url}" target="_blank" class="sidebar-site">{site_url}</a>
       <div class="sidebar-date">{date_str}</div>
     </div>
     <nav class="sidebar-nav">
@@ -850,8 +617,7 @@ def _render_html(*, site_url, date_str, total_pages, total_pass, total_warn,
       <a href="#summary" class="nav-item"><span class="nav-item-icon">📊</span> Overview</a>
       <a href="#site-checks" class="nav-item"><span class="nav-item-icon">🌐</span> Site Checks</a>
       <a href="#seo-table" class="nav-item"><span class="nav-item-icon">📋</span> Page SEO</a>
-      <a href="#visual" class="nav-item"><span class="nav-item-icon">🎨</span> Visual</a>
-      <div class="nav-section-label">Pages</div>
+      <div class="nav-section-label">Per-page breakdown</div>
       {sidebar_links}
     </nav>
     <div class="sidebar-actions">
@@ -870,39 +636,39 @@ def _render_html(*, site_url, date_str, total_pages, total_pass, total_warn,
   <main class="main-content">
     <div class="main-inner">
 
-      <!-- Page heading -->
       <div class="page-heading" id="summary">
         <h2>QA Report</h2>
         <div class="sub">{total_pages} page{"s" if total_pages != 1 else ""} checked &nbsp;·&nbsp; {date_str}</div>
+        <div class="summary-sentence" style="color:{summary_color}">{summary_sentence}</div>
       </div>
 
-      <!-- Summary Cards -->
       <div class="summary">
-        <div class="stat-card card-neutral">
+        <div class="stat-card">
+          <div class="stat-value neutral">{score}</div>
+          <div class="stat-label">Score</div>
+        </div>
+        <div class="stat-card">
           <div class="stat-value neutral">{total_pages}</div>
           <div class="stat-label">Pages Checked</div>
         </div>
-        <div class="stat-card card-pass">
+        <div class="stat-card">
           <div class="stat-value pass">{total_pass}</div>
           <div class="stat-label">SEO Passed</div>
         </div>
-        <div class="stat-card card-warn">
+        <div class="stat-card">
           <div class="stat-value warn">{total_warn}</div>
           <div class="stat-label">Warnings</div>
         </div>
-        <div class="stat-card card-fail">
+        <div class="stat-card">
           <div class="stat-value fail">{total_fail}</div>
           <div class="stat-label">Failures</div>
         </div>
-        {sim_html}
       </div>
 
-      <!-- Site-level SEO -->
       <div id="site-checks">
         {site_seo_html}
       </div>
 
-      <!-- Page-level SEO Table -->
       <div class="section" id="seo-table">
         <div class="section-title"><span class="section-icon">📋</span> Page-level SEO</div>
         <div class="table-wrap">
@@ -920,9 +686,8 @@ def _render_html(*, site_url, date_str, total_pages, total_pass, total_warn,
         </div>
       </div>
 
-      <!-- Visual Comparison -->
-      <div class="section" id="visual">
-        <div class="section-title"><span class="section-icon">🎨</span> Visual Comparison — Live vs Figma</div>
+      <div class="section" id="pages">
+        <div class="section-title"><span class="section-icon">📄</span> SEO breakdown per page</div>
         {pages_html}
       </div>
 
@@ -934,19 +699,14 @@ def _render_html(*, site_url, date_str, total_pages, total_pass, total_warn,
 </div>
 
 <script>
-  // Copy shareable link
   function copyReportLink(btn) {{
-    // If inside an iframe, build the full URL from the parent
-    const url = window.self !== window.top
-      ? window.location.href
-      : window.location.href;
+    const url = window.location.href;
     navigator.clipboard.writeText(url).then(() => {{
       const orig = btn.innerHTML;
       btn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg> Copied!';
-      btn.style.color = '#10b981';
+      btn.style.color = '#12b76a';
       setTimeout(() => {{ btn.innerHTML = orig; btn.style.color = ''; }}, 2000);
     }}).catch(() => {{
-      // Fallback for browsers that block clipboard in iframes
       const ta = document.createElement('textarea');
       ta.value = url;
       document.body.appendChild(ta);
@@ -958,26 +718,17 @@ def _render_html(*, site_url, date_str, total_pages, total_pass, total_warn,
     }});
   }}
 
-  // Save as PDF
   function savePDF() {{
-    // Expand all cards first so nothing is clipped in the PDF
     document.querySelectorAll('.page-card').forEach(c => c.classList.add('open'));
-    if (window.self !== window.top) {{
-      // Inside an iframe — open in new tab with ?autoprint=1 so it prints automatically
-      const sep = window.location.href.includes('?') ? '&' : '?';
-      window.open(window.location.href + sep + 'autoprint=1', '_blank');
-    }} else {{
-      window.print();
-    }}
+    window.print();
   }}
 
-  // Auto-print if ?autoprint=1 is in the URL (triggered from iframe)
   if (new URLSearchParams(window.location.search).get('autoprint') === '1') {{
     document.querySelectorAll('.page-card').forEach(c => c.classList.add('open'));
     window.addEventListener('load', () => setTimeout(() => window.print(), 800));
   }}
 
-  // Sidebar scroll-spy — highlight nav item matching the nearest section
+  // Sidebar scroll-spy
   const mainEl = document.querySelector('.main-content');
   const navLinks = document.querySelectorAll('.sidebar-nav .nav-item[href^="#"]');
   function updateActivNav() {{
@@ -996,112 +747,84 @@ def _render_html(*, site_url, date_str, total_pages, total_pass, total_warn,
   mainEl && mainEl.addEventListener('scroll', updateActivNav);
   updateActivNav();
 
+  // Smooth scroll for Report nav links
+  document.querySelectorAll('.sidebar-nav .nav-item[href^="#"]:not([href^="#page-"])').forEach(a => {{
+    a.addEventListener('click', e => {{
+      e.preventDefault();
+      const target = document.querySelector(a.getAttribute('href'));
+      if (target && mainEl) {{
+        const targetTop = target.getBoundingClientRect().top - mainEl.getBoundingClientRect().top + mainEl.scrollTop - 48;
+        mainEl.scrollTo({{ top: targetTop, behavior: 'smooth' }});
+      }}
+    }});
+  }});
+
+  // Smooth accordion helpers
+  function openCard(card) {{
+    const body = card.querySelector('.page-card-body');
+    card.classList.add('open');
+    body.style.height = body.scrollHeight + 'px';
+    body.addEventListener('transitionend', () => {{
+      if (card.classList.contains('open')) body.style.height = 'auto';
+    }}, {{ once: true }});
+  }}
+  function closeCard(card) {{
+    const body = card.querySelector('.page-card-body');
+    body.style.height = body.scrollHeight + 'px';
+    requestAnimationFrame(() => {{
+      body.style.height = '0';
+    }});
+    card.classList.remove('open');
+  }}
+
   // Page card accordion
   document.querySelectorAll('.page-card-header').forEach(header => {{
     header.addEventListener('click', () => {{
       const card = header.closest('.page-card');
-      card.classList.toggle('open');
+      card.classList.contains('open') ? closeCard(card) : openCard(card);
     }});
   }});
 
-  // Viewport tabs — event delegation so tabs in collapsed cards work on open
-  document.addEventListener('click', e => {{
-    const tab = e.target.closest('.vp-tab');
-    if (!tab) return;
-    const vpTabs = tab.closest('.vp-tabs');
-    if (!vpTabs) return;
-    const group = vpTabs.dataset.group;
-    document.querySelectorAll(`[data-group="${{group}}"].vp-tab`)
-      .forEach(t => t.classList.remove('active'));
-    document.querySelectorAll(`[data-group="${{group}}"].vp-panel`)
-      .forEach(p => p.classList.remove('active'));
-    tab.classList.add('active');
-    const target = document.querySelector(`[data-group="${{group}}"][data-vp="${{tab.dataset.vp}}"].vp-panel`);
-    if (target) target.classList.add('active');
+  // Sidebar page links — expand instantly, then smooth-scroll to fully open card
+  document.querySelectorAll('.sidebar-nav .nav-item[href^="#page-"]').forEach(a => {{
+    a.addEventListener('click', e => {{
+      e.preventDefault();
+      const card = document.querySelector(a.getAttribute('href'));
+      if (!card) return;
+      // Expand instantly (no transition) so we scroll to the full card height
+      const body = card.querySelector('.page-card-body');
+      body.style.transition = 'none';
+      card.classList.add('open');
+      body.style.height = 'auto';
+      body.offsetHeight; // force reflow
+      body.style.transition = ''; // restore transition for future toggles
+      // Now scroll with full card height known
+      const cardTop = card.getBoundingClientRect().top - mainEl.getBoundingClientRect().top + mainEl.scrollTop - 48;
+      mainEl.scrollTo({{ top: cardTop, behavior: 'smooth' }});
+    }});
   }});
 
-  // Image view tabs — event delegation so tabs in collapsed/inactive panels work correctly
-  document.addEventListener('click', e => {{
-    const tab = e.target.closest('.img-tab');
-    if (!tab) return;
-    const viewTabs = tab.closest('.img-view-tabs');
-    if (!viewTabs) return;
-    const group = viewTabs.dataset.group;
-    document.querySelectorAll(`[data-group="${{group}}"].img-tab`)
-      .forEach(t => t.classList.remove('active'));
-    document.querySelectorAll(`[data-group="${{group}}"].img-panel`)
-      .forEach(p => p.classList.remove('active'));
-    tab.classList.add('active');
-    const target = document.querySelector(`[data-group="${{group}}"][data-view="${{tab.dataset.view}}"].img-panel`);
-    if (target) target.classList.add('active');
-  }});
-
-  // Open first page card by default
+  // Open first card by default
   const firstCard = document.querySelector('.page-card');
-  if (firstCard) firstCard.classList.add('open');
+  if (firstCard) openCard(firstCard);
 
-  // ── Compare sliders (Live vs Figma) ──────────────────────────────────────
-  const mainScroll = document.querySelector('.main-content') || window;
-
-  document.querySelectorAll('.compare-container').forEach(container => {{
-    const topImg  = container.querySelector('.compare-top');
-    const line    = container.querySelector('.compare-line');
-    const knob    = container.querySelector('.compare-knob');
-    let dragging  = false;
-
-    function update(clientX) {{
-      const rect = container.getBoundingClientRect();
-      const pct  = Math.max(1, Math.min(99, (clientX - rect.left) / rect.width * 100));
-      topImg.style.clipPath = `inset(0 ${{100 - pct}}% 0 0)`;
-      line.style.left       = `${{pct}}%`;
-      knob.style.left       = `${{pct}}%`;
-    }}
-
-    // Keep knob vertically centered in the visible portion of the container
-    function updateKnobY() {{
-      const cRect   = container.getBoundingClientRect();
-      const scrollEl = (mainScroll === window) ? document.documentElement : mainScroll;
-      const viewTop  = (mainScroll === window) ? 0 : mainScroll.getBoundingClientRect().top;
-      const viewBot  = (mainScroll === window) ? window.innerHeight : mainScroll.getBoundingClientRect().bottom;
-      const visTop   = Math.max(cRect.top,    viewTop);
-      const visBot   = Math.min(cRect.bottom, viewBot);
-      if (visBot <= visTop) return;
-      // Convert viewport-relative center to container-relative top
-      const centerInContainer = (visTop + visBot) / 2 - cRect.top;
-      knob.style.top       = centerInContainer + 'px';
-      knob.style.transform = 'translateX(-50%)';
-    }}
-
-    mainScroll.addEventListener('scroll', updateKnobY, {{passive: true}});
-    window.addEventListener('resize', updateKnobY);
-    updateKnobY();
-
-    container.addEventListener('mousedown',  e => {{ dragging = true;  update(e.clientX); e.preventDefault(); }});
-    window.addEventListener   ('mousemove',  e => {{ if (dragging) update(e.clientX); }});
-    window.addEventListener   ('mouseup',    ()  => {{ dragging = false; }});
-    container.addEventListener('touchstart', e => {{ dragging = true;  update(e.touches[0].clientX); }}, {{passive: true}});
-    window.addEventListener   ('touchmove',  e => {{ if (dragging) update(e.touches[0].clientX); }},    {{passive: true}});
-    window.addEventListener   ('touchend',   ()  => {{ dragging = false; }});
+  // Render timestamps in the user's local timezone
+  document.querySelectorAll('.report-date').forEach(el => {{
+    const utc = el.dataset.utc;
+    if (!utc) return;
+    const d = new Date(utc);
+    const offset = -d.getTimezoneOffset();
+    const sign   = offset >= 0 ? '+' : '-';
+    const hrs    = String(Math.floor(Math.abs(offset) / 60)).padStart(2, '0');
+    const mins   = String(Math.abs(offset) % 60).padStart(2, '0');
+    const tz     = mins === '00' ? `GMT${{sign}}${{parseInt(hrs)}}` : `GMT${{sign}}${{hrs}}:${{mins}}`;
+    const formatted = d.toLocaleDateString('en-US', {{ month: 'long', day: '2-digit', year: 'numeric' }})
+                    + ' at '
+                    + d.toLocaleTimeString('en-US', {{ hour: '2-digit', minute: '2-digit', hour12: false }})
+                    + ' ' + tz;
+    el.textContent = formatted;
   }});
 
-  // Per-page notes — persisted in localStorage
-  const NOTES_KEY = 'framerqa_notes_{site_url_safe}';
-  function loadNotes() {{
-    try {{ return JSON.parse(localStorage.getItem(NOTES_KEY) || '{{}}'); }} catch {{ return {{}}; }}
-  }}
-  function saveNotes(notes) {{
-    try {{ localStorage.setItem(NOTES_KEY, JSON.stringify(notes)); }} catch {{}}
-  }}
-  document.querySelectorAll('.page-notes').forEach(el => {{
-    const page = el.dataset.page;
-    const notes = loadNotes();
-    if (notes[page]) el.innerHTML = notes[page];
-    el.addEventListener('input', () => {{
-      const n = loadNotes();
-      n[page] = el.innerHTML;
-      saveNotes(n);
-    }});
-  }});
 </script>
 </body>
 </html>"""
@@ -1109,34 +832,37 @@ def _render_html(*, site_url, date_str, total_pages, total_pass, total_warn,
 
 # ── Page card ─────────────────────────────────────────────────────────────────
 
-def _render_page(result: dict, viewports: list[dict], output_dir: str) -> str:
-    url       = result["url"]
-    path      = result["path"]
-    seo       = result["seo"]
-    vp_data   = result.get("viewports", [])
-    safe_id   = path.strip("/").replace("/", "_") or "home"
+def _render_page(result: dict) -> str:
+    url     = result["url"]
+    path    = result["path"]
+    seo     = result["seo"]
+    safe_id = path.strip("/").replace("/", "_") or "home"
 
-    # Build viewport tabs + panels
-    vp_tabs   = ""
-    vp_panels = ""
-    group_id  = f"vp_{safe_id}"
-
-    for i, vp_result in enumerate(vp_data):
-        vp     = vp_result["viewport"]
-        active = "active" if i == 0 else ""
-        vp_tabs += f'<button class="vp-tab {active}" data-group="{group_id}" data-vp="{i}">{vp["name"]} <span style="color:var(--muted);font-weight:400">({vp["width"]}px)</span></button>\n'
-        vp_panels += _render_vp_panel(vp_result, i, group_id, safe_id, active, output_dir, vp_result.get("annotations") or [])
-
-    # SEO mini-summary
     fail_count = seo["fail_count"]
     warn_count = seo["warn_count"]
-    seo_badge  = ""
     if fail_count:
         seo_badge = f'<span class="badge fail">SEO: {fail_count} issue{"s" if fail_count != 1 else ""}</span>'
     elif warn_count:
         seo_badge = f'<span class="badge warn">SEO: {warn_count} warning{"s" if warn_count != 1 else ""}</span>'
     else:
         seo_badge = ''
+
+    checks      = seo.get("checks", [])
+    check_rows  = ""
+    for c in checks:
+        st   = c["status"]
+        icon = {"pass": "✅", "warn": "⚠️", "fail": "❌"}.get(st, "")
+        name = c["name"]
+        detail = c.get("detail") or ""
+        value  = c.get("value") or ""
+        value_html = ""
+        if name in ("Meta Title", "Meta Description") and value:
+            limit = 60 if name == "Meta Title" else 160
+            value_html = f'<span class="check-value">{_render_char_highlighted(value, limit)}</span>'
+        elif value and value != detail:
+            truncated = (value[:100] + "…") if len(value) > 100 else value
+            value_html = f'<span class="check-value">{_esc(truncated)}</span>'
+        check_rows += f'<div class="check-row {st}"><span class="check-icon">{icon}</span><span class="check-name">{name}</span><span class="check-detail">{_esc(detail)}</span>{value_html}</div>\n'
 
     return f"""
 <div class="page-card" id="page-{safe_id}">
@@ -1151,143 +877,25 @@ def _render_page(result: dict, viewports: list[dict], output_dir: str) -> str:
     </div>
   </div>
   <div class="page-card-body">
-    <div class="vp-tabs" data-group="{group_id}">
-      {vp_tabs}
-    </div>
-    {vp_panels}
-    <div class="page-notes-wrapper">
-      <div class="page-notes-label">📝 Notes</div>
-      <div class="page-notes" contenteditable="true" data-page="{safe_id}" data-placeholder="Add QA notes for this page…"></div>
+    <div class="page-card-body-inner">
+      <div class="check-list">{check_rows}</div>
     </div>
   </div>
 </div>"""
-
-
-def _render_vp_panel(vp_result: dict, idx: int, group_id: str, safe_id: str, active: str, output_dir: str, annotations: list = []) -> str:
-    vp          = vp_result["viewport"]
-    live_path   = vp_result.get("live_path")
-    figma_path  = vp_result.get("figma_path")
-    diff_path   = vp_result.get("diff_path")
-    similarity  = vp_result.get("similarity")
-    view_group  = f"{group_id}_{idx}"
-
-    # Relative image paths from the report HTML location
-    def rel_path(p):
-        if p and os.path.exists(p):
-            return os.path.relpath(p, output_dir)
-        return None
-
-    live_rel  = rel_path(live_path)
-    figma_rel = rel_path(figma_path)
-    diff_rel  = rel_path(diff_path)
-
-    if not live_rel:
-        return f'<div class="vp-panel {active}" data-group="{group_id}" data-vp="{idx}"><div class="no-figma">Screenshot not available</div></div>'
-
-    has_figma   = figma_rel is not None
-    has_diff    = diff_rel is not None
-
-    sim_badge = ""
-    if similarity is not None:
-        color = similarity_color(similarity)
-        label = similarity_label(similarity)
-        sim_badge = f'<div class="sim-badge badge {color}">{similarity:.1f}% — {label}</div>'
-
-    # When Figma is available, Compare slider is the default tab.
-    # When Figma is not available, Live is the default (no slider).
-    default_view = "compare" if has_figma else "live"
-
-    img_tabs = ""
-    img_panels = ""
-
-    if has_figma:
-        # Compare slider tab (default)
-        img_tabs += f'<button class="img-tab active" data-group="{view_group}" data-view="compare">⇔ Compare</button>\n'
-        knob_svg = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#374151" stroke-width="2.5"><line x1="3" y1="12" x2="21" y2="12"/><polyline points="8 7 3 12 8 17"/><polyline points="16 7 21 12 16 17"/></svg>'
-        img_panels += f'''<div class="img-panel active" data-group="{view_group}" data-view="compare">
-  <div class="compare-container">
-    <img class="compare-base" src="{figma_rel}" alt="Figma design" loading="lazy">
-    <img class="compare-top"  src="{live_rel}"  alt="Live site"    loading="lazy">
-    <div class="compare-line"></div>
-    <div class="compare-knob">{knob_svg}</div>
-    <div class="compare-label" style="left:10px">Live</div>
-    <div class="compare-label" style="right:10px">Figma</div>
-  </div>
-</div>\n'''
-        # Live tab
-        img_tabs  += f'<button class="img-tab" data-group="{view_group}" data-view="live">Live</button>\n'
-        img_panels += f'<div class="img-panel" data-group="{view_group}" data-view="live"><img class="screenshot" src="{live_rel}" alt="Live screenshot" loading="lazy"></div>\n'
-        # Figma tab
-        img_tabs  += f'<button class="img-tab" data-group="{view_group}" data-view="figma">Figma</button>\n'
-        img_panels += f'<div class="img-panel" data-group="{view_group}" data-view="figma"><img class="screenshot" src="{figma_rel}" alt="Figma export" loading="lazy"></div>\n'
-    else:
-        # No Figma — just show Live
-        img_tabs  += f'<button class="img-tab active" data-group="{view_group}" data-view="live">Live</button>\n'
-        img_panels += f'<div class="img-panel active" data-group="{view_group}" data-view="live"><img class="screenshot" src="{live_rel}" alt="Live screenshot" loading="lazy"></div>\n'
-
-    if has_diff:
-        img_tabs  += f'<button class="img-tab" data-group="{view_group}" data-view="diff">Diff</button>\n'
-        annotations_html = _render_annotations(annotations)
-        img_panels += f'<div class="img-panel" data-group="{view_group}" data-view="diff"><img class="screenshot" src="{diff_rel}" alt="Pixel diff" loading="lazy">{annotations_html}</div>\n'
-
-    return f"""
-<div class="vp-panel {active}" data-group="{group_id}" data-vp="{idx}">
-  {sim_badge}
-  <div class="img-view-tabs" data-group="{view_group}">{img_tabs}</div>
-  <div class="img-panels">
-    {img_panels}
-  </div>
-</div>"""
-
-
-# ── CSS Annotations ───────────────────────────────────────────────────────────
-
-def _render_annotations(annotations: list) -> str:
-    """Renders the numbered CSS annotation list shown below the diff image."""
-    if not annotations:
-        return ""
-
-    items = ""
-    for a in annotations:
-        selector = _esc(a.get("selector") or "?")
-        text     = a.get("text") or ""
-        styles   = a.get("styles") or {}
-        num      = a.get("index", "?")
-
-        text_html = f'<div class="ann-text">"{_esc(text[:60])}"</div>' if text else ""
-
-        props_html = "".join(
-            f'<span class="ann-prop"><span>{_esc(k)}: </span>{_esc(str(v))}</span>'
-            for k, v in styles.items()
-        )
-
-        items += f"""
-<div class="ann-item">
-  <div class="ann-badge">{num}</div>
-  <div class="ann-body">
-    <div class="ann-selector">{selector}</div>
-    {text_html}
-    <div class="ann-props">{props_html}</div>
-  </div>
-</div>"""
-
-    return f'<div class="annotations"><div class="ann-title">🔬 Changed regions — live CSS</div>{items}</div>'
 
 
 # ── Site SEO section ──────────────────────────────────────────────────────────
 
 def _render_site_seo_section(site_seo: dict) -> str:
-    """Renders a card-style section for site-level SEO checks (lang, favicon, OG, Twitter)."""
-    checks   = site_seo.get("checks", [])
-
-    cards = ""
+    order  = ["Site Language", "Favicon", "Social Preview Image", "Meta Title", "Meta Description"]
+    checks = sorted(site_seo.get("checks", []), key=lambda c: order.index(c["name"]) if c["name"] in order else 99)
+    cards  = ""
     for c in checks:
         status = c["status"]
         detail = c["detail"] or ""
         value  = c["value"] or ""
         name   = c["name"]
 
-        # Extra content per check type
         extra = ""
         if name == "Favicon" and value:
             extra = f'''<div class="favicon-preview">
@@ -1308,7 +916,6 @@ def _render_site_seo_section(site_seo: dict) -> str:
             truncated = (value[:100] + "…") if len(value) > 100 else value
             extra = f'<div class="site-check-value">{truncated}</div>'
 
-        # Card layout: OG image = 1 col but spans 2 rows, Meta Description = 2 cols, rest = 1 col
         if name == "Social Preview Image":
             card_class = "site-check-card og-image-card"
         elif name == "Meta Description":
@@ -1337,15 +944,13 @@ def _render_site_seo_section(site_seo: dict) -> str:
   </div>'''
 
 
-# ── Character highlight helper ────────────────────────────────────────────────
+# ── Helpers ───────────────────────────────────────────────────────────────────
 
 def _esc(s: str) -> str:
-    """Minimal HTML escape."""
     return s.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
 
 
 def _render_char_highlighted(text: str, max_chars: int) -> str:
-    """Returns HTML where characters beyond max_chars are wrapped in a red highlight span."""
     if not text:
         return ""
     if len(text) <= max_chars:

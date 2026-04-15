@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Framer QA</title>
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg width='250' height='250' viewBox='0 0 250 250' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Crect width='250' height='250' rx='48' fill='%23070707'/%3E%3Cpath d='M175.24 94.6419C175.24 63.3188 154.171 54 113.301 54H69V195H93.3096V135.636H116.898C119.418 135.636 121.846 135.636 124.192 135.452L153.541 194.992H181L149.131 130.977C166.595 124.949 175.24 112.709 175.24 94.6335V94.6419ZM117.528 116.008H93.4008V73.813H116.724C135.903 73.813 150.308 76.3736 150.308 94.8182C150.308 111.71 138.423 116.008 117.536 116.008H117.528Z' fill='%23FAFAFA'/%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -62,10 +63,9 @@ header {
 .logo { display: flex; align-items: center; gap: 10px; font-weight: 700; font-size: 15px; color: var(--text); letter-spacing: -0.3px; }
 .logo-icon {
   width: 30px; height: 30px;
-  background: var(--accent);
   border-radius: 8px;
-  display: flex; align-items: center; justify-content: center;
-  font-size: 15px;
+  overflow: hidden;
+  flex-shrink: 0;
 }
 .header-nav { display: flex; gap: 4px; background: var(--bg); padding: 4px; border-radius: 10px; }
 .nav-btn {
@@ -83,7 +83,7 @@ header {
 /* ── Main ────────────────────────────────────────────────────────────────── */
 main {
   display: grid;
-  grid-template-columns: 400px 1fr;
+  grid-template-columns: 360px 1fr;
   height: calc(100vh - 58px);
   overflow: hidden;
 }
@@ -121,11 +121,9 @@ input[type=text], input[type=url], input[type=number], input[type=password] {
 }
 input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(16,24,40,.1); }
 input::placeholder { color: var(--muted); }
-input[type=password] { font-family: monospace; letter-spacing: .05em; }
 
 .help-text { font-size: 11px; color: var(--muted); line-height: 1.5; }
 .help-text code { background: var(--surface2); border: 1px solid var(--border); padding: 1px 5px; border-radius: 4px; font-size: 11px; }
-.help-text a { font-size: 11px; }
 
 .divider { height: 1px; background: var(--border); }
 
@@ -243,149 +241,6 @@ input[type=password] { font-family: monospace; letter-spacing: .05em; }
 }
 .delete-project-btn:hover { border-color: var(--fail); color: var(--fail); background: #fef2f2; }
 
-/* ── Extracted ID hint ───────────────────────────────────────────────────── */
-.extracted-hint {
-  display: none;
-  font-size: 11px;
-  color: var(--pass);
-  line-height: 1.5;
-}
-.extracted-hint.visible { display: block; }
-.extracted-hint code {
-  background: #ecfdf5;
-  border: 1px solid #a7f3d0;
-  padding: 1px 5px;
-  border-radius: 4px;
-  font-size: 11px;
-  color: var(--pass);
-}
-
-/* ── Figma frames ────────────────────────────────────────────────────────── */
-.fetch-frames-btn {
-  padding: 7px 12px;
-  background: var(--surface);
-  border: 1px solid var(--border2);
-  border-radius: var(--radius-sm);
-  color: var(--muted2);
-  font-size: 12px; font-weight: 500;
-  width: 100%;
-  transition: all .15s;
-}
-.fetch-frames-btn:hover { border-color: var(--accent); color: var(--accent); background: var(--accent-light); }
-.fetch-frames-btn:disabled { opacity: .5; cursor: not-allowed; }
-
-.frames-list-UNUSED {
-  background: var(--surface);
-  border: 1px solid var(--border2);
-  border-radius: var(--radius-sm);
-  max-height: 180px;
-  overflow-y: auto;
-  display: none;
-  box-shadow: var(--shadow-sm);
-}
-.frames-list.visible { display: block; }
-.frame-item {
-  padding: 8px 12px;
-  cursor: pointer;
-  border-bottom: 1px solid var(--border);
-  font-size: 12px;
-  transition: background .1s;
-  display: flex; flex-direction: column; gap: 2px;
-}
-.frame-item:last-child { border-bottom: none; }
-.frame-item:hover { background: var(--accent-light); }
-.frame-item .frame-name { font-weight: 600; color: var(--text); }
-.frame-item .frame-meta { color: var(--muted); font-size: 11px; }
-.frame-item .frame-hint { color: var(--accent); font-size: 11px; }
-
-/* ── Page mappings ───────────────────────────────────────────────────────── */
-.mappings-table { display: flex; flex-direction: column; gap: 8px; }
-.mapping-row {
-  background: var(--surface2);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
-  padding: 10px 10px 8px;
-  display: flex; flex-direction: column; gap: 8px;
-}
-.mapping-path-row {
-  display: grid;
-  grid-template-columns: 1fr auto;
-  gap: 6px; align-items: center;
-}
-.mapping-path-row input { font-size: 12px; padding: 7px 10px; }
-.mapping-vp-fields { display: flex; flex-direction: column; gap: 4px; padding-left: 2px; }
-.vp-frame-row { display: grid; grid-template-columns: 64px 1fr; gap: 6px; align-items: center; }
-.vp-frame-label { font-size: 11px; color: var(--muted2); font-weight: 500; white-space: nowrap; }
-.vp-frame-row input {
-  font-size: 12px; padding: 5px 8px;
-  font-family: 'SF Mono', 'Fira Code', monospace;
-  letter-spacing: .02em;
-}
-
-.del-btn {
-  width: 28px; height: 28px;
-  background: transparent;
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  color: var(--muted);
-  display: flex; align-items: center; justify-content: center;
-  font-size: 14px;
-  transition: all .15s; flex-shrink: 0;
-}
-.del-btn:hover { border-color: var(--fail); color: var(--fail); background: #fef2f2; }
-.add-row-btn {
-  padding: 7px 12px;
-  background: transparent;
-  border: 1px dashed var(--border2);
-  border-radius: var(--radius-sm);
-  color: var(--muted); font-size: 12px; width: 100%;
-  transition: all .15s;
-}
-.add-row-btn:hover { border-color: var(--accent); color: var(--accent); background: var(--accent-light); }
-
-/* ── Viewports ───────────────────────────────────────────────────────────── */
-.viewport-rows { display: flex; flex-direction: column; gap: 8px; }
-.viewport-row {
-  display: grid;
-  grid-template-columns: 80px 1fr auto;
-  gap: 6px; align-items: center;
-}
-.viewport-row input { font-size: 12px; padding: 7px 10px; }
-.add-vp-btn {
-  padding: 7px 12px;
-  background: transparent;
-  border: 1px dashed var(--border2);
-  border-radius: var(--radius-sm);
-  color: var(--muted); font-size: 12px; width: 100%;
-  transition: all .15s;
-}
-.add-vp-btn:hover { border-color: var(--accent); color: var(--accent); background: var(--accent-light); }
-
-/* ── Options / Toggle ────────────────────────────────────────────────────── */
-.toggle-row { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
-.toggle-label-group { display: flex; flex-direction: column; gap: 3px; }
-.toggle-label { font-size: 13px; color: var(--text); }
-.toggle-desc  { font-size: 11px; color: var(--muted); line-height: 1.4; }
-.toggle { position: relative; width: 40px; height: 22px; flex-shrink: 0; margin-top: 1px; }
-.toggle input { opacity: 0; width: 0; height: 0; }
-.toggle-slider {
-  position: absolute; inset: 0;
-  background: var(--border2);
-  border: 1px solid var(--border2);
-  border-radius: 11px; transition: .2s; cursor: pointer;
-}
-.toggle-slider::before {
-  content: "";
-  position: absolute;
-  width: 16px; height: 16px;
-  border-radius: 50%;
-  background: #fff;
-  top: 2px; left: 2px; transition: .2s;
-  box-shadow: 0 1px 3px rgba(0,0,0,.2);
-}
-.toggle input:checked + .toggle-slider { background: var(--accent); border-color: var(--accent); }
-.toggle input:checked + .toggle-slider::before { background: #fff; transform: translateX(18px); }
-
 /* ── Run button ──────────────────────────────────────────────────────────── */
 .run-btn {
   padding: 12px 20px;
@@ -421,7 +276,7 @@ input[type=password] { font-family: monospace; letter-spacing: .05em; }
   gap: 16px; color: var(--muted); padding: 40px; text-align: center;
 }
 .empty-icon { font-size: 48px; opacity: .6; }
-.empty-state h2 { font-size: 18px; color: var(--muted2); font-weight: 600; }
+.empty-state h2 { font-size: 18px; color: var(--muted2); font-weight: 600; letter-spacing: -0.2px; }
 .empty-state p { font-size: 14px; max-width: 460px; line-height: 1.7; color: var(--muted); }
 
 /* ── Console ─────────────────────────────────────────────────────────────── */
@@ -431,7 +286,7 @@ input[type=password] { font-family: monospace; letter-spacing: .05em; }
   display: flex; align-items: center; justify-content: space-between; flex-shrink: 0;
   background: var(--surface);
 }
-.console-title { font-weight: 600; font-size: 14px; display: flex; align-items: center; gap: 8px; color: var(--text); }
+.console-title { font-weight: 600; font-size: 14px; display: flex; align-items: center; gap: 8px; color: var(--text); letter-spacing: -0.2px; }
 .spinner {
   width: 16px; height: 16px;
   border: 2px solid var(--border2); border-top-color: var(--accent);
@@ -446,11 +301,13 @@ input[type=password] { font-family: monospace; letter-spacing: .05em; }
 }
 .console-body {
   flex: 1; overflow-y: auto; padding: 16px 24px;
-  font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', monospace;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   font-size: 12px; line-height: 1.8; background: #1e1e2e;
   color: #cdd6f4;
 }
-.log-line { color: #7c849a; white-space: pre-wrap; word-break: break-word; }
+.log-line { color: #7c849a; word-break: break-word; display: flex; align-items: baseline; gap: 6px; }
+.log-icon { width: 28px; flex-shrink: 0; text-align: left; }
+.log-text { flex: 1; white-space: pre-wrap; }
 .log-line.em   { color: #cdd6f4; }
 .log-line.pass { color: #a6e3a1; }
 .log-line.warn { color: #f9e2af; }
@@ -471,8 +328,6 @@ input[type=password] { font-family: monospace; letter-spacing: .05em; }
 }
 .new-check-btn:hover { border-color: var(--accent); color: var(--accent); background: var(--accent-light); }
 
-/* ── Report view — opens in new tab, no iframe needed ── */
-
 /* ── History ─────────────────────────────────────────────────────────────── */
 .history-view { padding: 28px; overflow-y: auto; }
 .history-title { font-size: 15px; font-weight: 700; margin-bottom: 20px; letter-spacing: -0.2px; }
@@ -487,17 +342,22 @@ input[type=password] { font-family: monospace; letter-spacing: .05em; }
 .history-item:hover { box-shadow: var(--shadow); }
 .history-favicon {
   width: 20px; height: 20px; border-radius: 4px; flex-shrink: 0;
-  object-fit: contain; background: var(--bg2);
+  object-fit: contain;
 }
 .history-favicon-placeholder {
   width: 20px; height: 20px; border-radius: 4px; flex-shrink: 0;
-  background: var(--bg2); display: flex; align-items: center; justify-content: center;
+  display: flex; align-items: center; justify-content: center;
   font-size: 11px; color: var(--muted);
 }
 .history-item-left { overflow: hidden; flex: 1; min-width: 0; }
 .history-item .site { font-weight: 500; font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--text); }
 .history-item .date { font-size: 11px; color: var(--muted); margin-top: 2px; }
 .history-item-actions { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
+.history-pills { display: flex; gap: 4px; align-items: center; }
+.history-pill { font-size: 11px; font-weight: 500; padding: 2px 8px; border-radius: 20px; }
+.history-pill.pass { background: #ecfdf5; color: var(--pass); }
+.history-pill.warn { background: #fffbeb; color: #d97706; }
+.history-pill.fail { background: #fef2f2; color: #f04438; }
 .history-status { padding: 3px 10px; border-radius: 20px; font-size: 11px; font-weight: 600; flex-shrink: 0; }
 .history-status.done    { background: #ecfdf5; color: var(--pass); }
 .history-status.running { background: var(--accent-light); color: var(--accent); }
@@ -524,44 +384,6 @@ input[type=password] { font-family: monospace; letter-spacing: .05em; }
   header { padding: 0 16px; }
   .sidebar { padding: 20px 16px; }
 }
-
-/* ── Path picker dropdown ────────────────────────────────────────────────── */
-.path-picker-wrap { position: relative; flex: 1; min-width: 0; }
-.path-picker-dropdown {
-  position: absolute; top: calc(100% + 4px); left: 0; right: 0;
-  background: var(--surface); border: 1px solid var(--border2);
-  border-radius: var(--radius-sm); box-shadow: var(--shadow);
-  z-index: 999; max-height: 180px; overflow-y: auto; display: none;
-}
-.path-picker-dropdown.open { display: block; }
-.path-picker-item {
-  padding: 7px 10px; font-size: 12px; cursor: pointer; font-family: monospace;
-  border-bottom: 1px solid var(--border); transition: background .1s;
-}
-.path-picker-item:last-child { border-bottom: none; }
-.path-picker-item:hover, .path-picker-item.highlighted { background: var(--accent-light); color: var(--accent); }
-.path-picker-empty { padding: 10px; font-size: 12px; color: var(--muted); text-align: center; }
-
-/* ── Frame picker dropdown ───────────────────────────────────────────────── */
-.frame-picker-wrap { position: relative; flex: 1; }
-.frame-picker-dropdown {
-  position: absolute; top: calc(100% + 4px); left: 0; right: 0;
-  background: var(--surface); border: 1px solid var(--border2);
-  border-radius: var(--radius-sm); box-shadow: var(--shadow);
-  z-index: 999; max-height: 220px; overflow-y: auto;
-  display: none;
-}
-.frame-picker-dropdown.open { display: block; }
-.frame-picker-item {
-  padding: 7px 10px; font-size: 12px; cursor: pointer;
-  border-bottom: 1px solid var(--border); transition: background .1s;
-  display: flex; flex-direction: column; gap: 1px;
-}
-.frame-picker-item:last-child { border-bottom: none; }
-.frame-picker-item:hover, .frame-picker-item.highlighted { background: var(--accent-light); }
-.frame-picker-item .fp-name { font-weight: 500; color: var(--text); }
-.frame-picker-item .fp-meta { font-size: 10.5px; color: var(--muted); }
-.frame-picker-empty { padding: 10px; font-size: 12px; color: var(--muted); text-align: center; }
 </style>
 </head>
 <body>
@@ -569,7 +391,7 @@ input[type=password] { font-family: monospace; letter-spacing: .05em; }
 
 <header>
   <div class="logo">
-    <div class="logo-icon">🔍</div>
+    <div class="logo-icon"><svg width="30" height="30" viewBox="0 0 250 250" fill="none" xmlns="http://www.w3.org/2000/svg"><rect width="250" height="250" fill="#070707"/><path d="M175.24 94.6419C175.24 63.3188 154.171 54 113.301 54H69V195H93.3096V135.636H116.898C119.418 135.636 121.846 135.636 124.192 135.452L153.541 194.992H181L149.131 130.977C166.595 124.949 175.24 112.709 175.24 94.6335V94.6419ZM117.528 116.008H93.4008V73.813H116.724C135.903 73.813 150.308 76.3736 150.308 94.8182C150.308 111.71 138.423 116.008 117.536 116.008H117.528Z" fill="#FAFAFA"/></svg></div>
     Framer QA
   </div>
   <nav class="header-nav">
@@ -586,7 +408,7 @@ input[type=password] { font-family: monospace; letter-spacing: .05em; }
   <!-- ── Projects ── -->
   <div class="form-section project-section">
     <div class="section-label">Saved Project</div>
-    <span class="help-text" style="margin-top:-4px">Load a saved project to fill all fields automatically — no need to re-enter details.</span>
+    <span class="help-text" style="margin-top:-4px">Load a saved project to fill all fields automatically.</span>
     <div class="project-row">
       <div class="project-dropdown-wrap" id="project-dropdown-wrap">
         <button class="project-trigger" id="project-trigger" onclick="toggleProjectDropdown(event)">
@@ -607,116 +429,13 @@ input[type=password] { font-family: monospace; letter-spacing: .05em; }
 
   <div class="divider"></div>
 
-  <!-- ── Viewports ── -->
-  <div class="form-section">
-    <div class="section-label">Viewports</div>
-    <div class="help-text">Name · Width (px)</div>
-    <div class="viewport-rows" id="viewport-rows"></div>
-    <button class="add-vp-btn" onclick="addViewportRow({}, true)">+ Add viewport</button>
-  </div>
-
-  <div class="divider"></div>
-
   <!-- ── Site ── -->
   <div class="form-section">
     <div class="section-label">Site</div>
     <div class="field">
       <label>Site URL <span class="req">*</span></label>
       <input type="url" id="site-url" placeholder="https://your-site.framer.website"
-             autocomplete="off" oninput="onSiteUrlChange()">
-    </div>
-  </div>
-
-  <div class="divider"></div>
-
-  <!-- ── Figma ── -->
-  <div class="form-section">
-    <div class="section-label">Figma (optional)</div>
-
-    <div class="field">
-      <label>API Token</label>
-      <input type="password" id="figma-token" placeholder="figd_••••••••••••••••••••••"
-             autocomplete="off" spellcheck="false" oninput="resetFetchBtn()">
-      <span class="help-text">
-        <a href="https://figma.com" target="_blank">figma.com</a> → Account Settings → Security → Personal Access Tokens →
-        enable <code>file_content:read</code> and <code>file_metadata:read</code>
-      </span>
-    </div>
-
-    <div class="field">
-      <label>File ID</label>
-      <input type="text" id="figma-file-id"
-             placeholder="Paste full Figma URL or File ID"
-             autocomplete="off" spellcheck="false"
-             oninput="autoExtractFileId(this); resetFetchBtn()">
-      <span class="extracted-hint" id="file-id-hint"></span>
-      <span class="help-text">Paste the full Figma URL — the File ID will be extracted automatically.</span>
-    </div>
-
-    <div style="display:flex;gap:8px;align-items:center">
-      <button id="fetch-btn" onclick="fetchAll()"
-              style="flex:1;padding:10px 16px;font-size:13px;font-weight:600;
-                     background:var(--accent);color:#fff;border:none;border-radius:8px;
-                     cursor:pointer;transition:opacity .15s;letter-spacing:-0.1px">
-        Fetch
-      </button>
-      <label style="display:flex;align-items:center;gap:6px;font-size:11.5px;color:var(--muted2);cursor:pointer;flex-shrink:0">
-        <input type="checkbox" id="only-dev-ready" style="accent-color:var(--accent)">
-        Ready for Dev only
-      </label>
-    </div>
-
-    <div class="form-section" style="gap:8px">
-      <div>
-        <label style="font-size:12px;font-weight:500;color:var(--muted2)">Page → Frame mappings</label>
-      </div>
-      <div class="help-text" style="margin-bottom:4px">
-        Map each page to a Figma frame <strong>per breakpoint</strong>. Click any node field to pick a frame from the list, or paste a full Figma frame link — the ID will be extracted automatically.<br>
-        Frame link format: <code>figma.com/design/…?node-id=123-456</code> → becomes <code>123:456</code>
-      </div>
-      <div class="mappings-table" id="mappings-table"></div>
-      <button class="add-row-btn" onclick="addMappingRow()">+ Add page mapping</button>
-    </div>
-  </div>
-
-  <div class="divider"></div>
-
-  <!-- ── Options ── -->
-  <div class="form-section">
-    <div class="section-label">Options</div>
-
-    <div class="toggle-row">
-      <div class="toggle-label-group">
-        <span class="toggle-label">SEO checks only</span>
-        <span class="toggle-desc">Skip visual diff — only run SEO &amp; metadata checks</span>
-      </div>
-      <label class="toggle">
-        <input type="checkbox" id="seo-only">
-        <span class="toggle-slider"></span>
-      </label>
-    </div>
-
-    <div class="toggle-row">
-      <div class="toggle-label-group">
-        <span class="toggle-label">Skip CSS inspection</span>
-        <span class="toggle-desc">CSS inspection re-loads each page to identify which elements caused visual diffs. Disable to speed up the scan.</span>
-      </div>
-      <label class="toggle">
-        <input type="checkbox" id="skip-css-extract" checked>
-        <span class="toggle-slider"></span>
-      </label>
-    </div>
-
-    <div class="field">
-      <label>Diff threshold <span style="color:var(--muted);font-weight:400">(0–255)</span></label>
-      <input type="number" id="diff-threshold" value="10" min="0" max="255">
-      <span class="help-text">Pixel sensitivity. 0 = pixel-perfect, 30+ forgives minor rendering differences.</span>
-    </div>
-
-    <div class="field">
-      <label>Page timeout <span style="color:var(--muted);font-weight:400">(ms)</span></label>
-      <input type="number" id="timeout-ms" value="15000" min="5000" max="60000" step="1000">
-      <span class="help-text">How long to wait for each page to load before screenshotting.</span>
+             autocomplete="off" oninput="updateSaveBtn()">
     </div>
   </div>
 
@@ -737,7 +456,7 @@ input[type=password] { font-family: monospace; letter-spacing: .05em; }
 
   <div class="panel-view active" id="view-empty">
     <div class="empty-state">
-      <div class="empty-icon">🔍</div>
+      <div class="empty-icon"><svg width="48" height="48" viewBox="0 0 250 250" fill="none" xmlns="http://www.w3.org/2000/svg"><rect width="250" height="250" fill="#070707" rx="40"/><path d="M175.24 94.6419C175.24 63.3188 154.171 54 113.301 54H69V195H93.3096V135.636H116.898C119.418 135.636 121.846 135.636 124.192 135.452L153.541 194.992H181L149.131 130.977C166.595 124.949 175.24 112.709 175.24 94.6335V94.6419ZM117.528 116.008H93.4008V73.813H116.724C135.903 73.813 150.308 76.3736 150.308 94.8182C150.308 111.71 138.423 116.008 117.536 116.008H117.528Z" fill="#FAFAFA"/></svg></div>
       <h2>Ready to run</h2>
       <p>Fill in your site URL on the left and click <strong>Run QA Check</strong>.<br>Results will appear here.</p>
     </div>
@@ -763,7 +482,6 @@ input[type=password] { font-family: monospace; letter-spacing: .05em; }
       </div>
     </div>
   </div>
-
 
   <div class="panel-view" id="view-history">
     <div class="history-view">
@@ -830,43 +548,17 @@ function toggleProjectDropdown(e) {
   }
 }
 
-function filterProjects(val) {
-  renderProjectList(val);
-}
+function filterProjects(val) { renderProjectList(val); }
 
 function selectProject(name) {
   const projects = loadProjects();
   const p = projects[name];
   if (!p) return;
 
-  // Populate form
-  document.getElementById('site-url').value         = p.site_url || '';
-  document.getElementById('figma-token').value      = p.figma_token || '';
-  document.getElementById('figma-file-id').value    = p.figma_file_id || '';
-  document.getElementById('diff-threshold').value   = p.diff_threshold ?? 10;
-  document.getElementById('timeout-ms').value       = p.timeout_ms ?? 15000;
-  document.getElementById('seo-only').checked         = p.seo_only || false;
-  document.getElementById('skip-css-extract').checked = p.skip_css_extract !== undefined ? p.skip_css_extract : true;
-  document.getElementById('only-dev-ready').checked   = p.only_dev_ready !== undefined ? p.only_dev_ready : false;
-  document.getElementById('file-id-hint').classList.remove('visible');
+  document.getElementById('site-url').value   = p.site_url || '';
 
-  // Viewports — use saved viewports or fall back to defaults if empty
-  document.getElementById('viewport-rows').innerHTML = '';
-  const vpsToLoad = (p.viewports && p.viewports.length) ? p.viewports : DEFAULT_VIEWPORTS;
-  vpsToLoad.forEach(vp => addViewportRow(vp));
-
-  // Mappings — rebuild rows after viewports are set
-  document.getElementById('mappings-table').innerHTML = '';
-  const vpForMappings = getViewports().length > 0 ? getViewports() : DEFAULT_VIEWPORTS;
-  if (p.page_frames && p.page_frames.length) {
-    p.page_frames.forEach(r => _addMappingRowInternal(r.path || '', r.frames || {}, vpForMappings));
-  } else {
-    _addMappingRowInternal('', {}, vpForMappings);
-  }
-
-  // Update UI
   currentProjectName = name;
-  savedState = getFormState(); // mark as clean after load
+  savedState = getFormState();
   const t = document.getElementById('trigger-text');
   t.textContent = name;
   t.classList.add('has-value');
@@ -887,7 +579,7 @@ function saveCurrentProject() {
   if (!ok) return;
 
   currentProjectName = trimmed;
-  savedState = getFormState(); // mark as clean after save
+  savedState = getFormState();
   const t = document.getElementById('trigger-text');
   t.textContent = trimmed;
   t.classList.add('has-value');
@@ -912,9 +604,9 @@ function deleteCurrentProject() {
 }
 
 function clearCurrentProject(e) {
-  e.stopPropagation(); // don't open the dropdown
+  e.stopPropagation();
   currentProjectName = null;
-  savedState = getFormState(); // treat current form as "clean" baseline
+  savedState = getFormState();
   const t = document.getElementById('trigger-text');
   t.textContent = 'Select a project…';
   t.classList.remove('has-value');
@@ -926,21 +618,13 @@ function clearCurrentProject(e) {
 
 function getFormState() {
   return {
-    site_url:         document.getElementById('site-url').value.trim(),
-    figma_token:      document.getElementById('figma-token').value.trim(),
-    figma_file_id:    document.getElementById('figma-file-id').value.trim(),
-    page_frames:      getMappings(),
-    viewports:        getViewports(),
-    diff_threshold:   parseInt(document.getElementById('diff-threshold').value) || 10,
-    timeout_ms:       parseInt(document.getElementById('timeout-ms').value) || 15000,
-    seo_only:         document.getElementById('seo-only').checked,
-    skip_css_extract: document.getElementById('skip-css-extract').checked,
-    only_dev_ready:   document.getElementById('only-dev-ready').checked,
+    site_url:   document.getElementById('site-url').value.trim(),
+    timeout_ms: 15000,
   };
 }
 
 // ── Dirty state tracking ──────────────────────────────────────────────────────
-let savedState = null; // null = no project loaded
+let savedState = null;
 
 function updateSaveBtn() {
   const btn = document.getElementById('save-project-btn');
@@ -950,32 +634,18 @@ function updateSaveBtn() {
   btn.textContent = name;
 }
 
-// Listen to any input/change in the sidebar
 document.querySelector('.sidebar').addEventListener('input',  updateSaveBtn);
 document.querySelector('.sidebar').addEventListener('change', updateSaveBtn);
 
-// Close dropdown when clicking outside
+// Close project dropdown when clicking outside
 document.addEventListener('click', e => {
   if (!document.getElementById('project-dropdown-wrap').contains(e.target)) {
     document.getElementById('project-dropdown').classList.remove('open');
   }
 });
 
-// ── Defaults ──────────────────────────────────────────────────────────────────
-// VP_HEIGHTS must be declared BEFORE init() runs (const is not hoisted)
-const VP_HEIGHTS = { Desktop: 900, Tablet: 1024, Mobile: 812 };
-
-const DEFAULT_VIEWPORTS = [
-  { name: 'Desktop', width: 1440, height: 900  },
-  { name: 'Tablet',  width: 768,  height: 1024 },
-  { name: 'Mobile',  width: 375,  height: 812  },
-];
-
+// ── Init ──────────────────────────────────────────────────────────────────────
 (function init() {
-  DEFAULT_VIEWPORTS.forEach(vp => addViewportRow(vp));
-  _addMappingRowInternal('/', {}, DEFAULT_VIEWPORTS);
-  _addMappingRowInternal('', {}, DEFAULT_VIEWPORTS);
-  // Silently check if there's any history so we can show the tab
   fetch('/api/jobs').then(r => r.json()).then(jobs => {
     if (jobs.length) document.getElementById('nav-history').style.display = '';
   }).catch(() => {});
@@ -997,478 +667,6 @@ function showTab(tab) {
   }
 }
 
-// ── Viewport rows ─────────────────────────────────────────────────────────────
-function addViewportRow(vp = {}, isNew = false) {
-  const row = document.createElement('div');
-  row.className = 'viewport-row';
-  row.innerHTML = `
-    <input type="text"   class="vp-name"   value="${vp.name  || ''}" placeholder="Name">
-    <input type="number" class="vp-width"  value="${vp.width || ''}" placeholder="Width px" min="320">
-    <button class="del-btn" title="Remove">×</button>`;
-
-  // Delete: remove viewport row + matching frame field from every mapping
-  row.querySelector('.del-btn').addEventListener('click', () => {
-    const name = row.querySelector('.vp-name').value.trim();
-    row.remove();
-    document.querySelectorAll(`.mapping-vp-fields .vp-frame-row`).forEach(fr => {
-      if (fr.querySelector('.map-node-id')?.dataset.vp === name) fr.remove();
-    });
-  });
-
-  // When name changes, update data-vp on the corresponding frame inputs
-  row.querySelector('.vp-name').addEventListener('change', function() {
-    const oldName = this.dataset.prev || '';
-    const newName = this.value.trim();
-    this.dataset.prev = newName;
-    document.querySelectorAll(`.map-node-id[data-vp="${oldName}"]`).forEach(inp => {
-      inp.dataset.vp = newName;
-      inp.closest('.vp-frame-row').querySelector('.vp-frame-label').textContent = newName;
-    });
-  });
-  // Store initial name so rename tracking works
-  const nameInput = row.querySelector('.vp-name');
-  const initialName = vp.name || '';
-  nameInput.dataset.prev = initialName;
-
-  document.getElementById('viewport-rows').appendChild(row);
-
-  // If this is a brand-new viewport (not loaded from init/project), add a frame field to every existing mapping.
-  // We add immediately even if the name is blank — the rename handler will update labels when the user types one.
-  if (isNew) {
-    document.querySelectorAll('.mapping-vp-fields').forEach(vpFields => {
-      const fr = document.createElement('div');
-      fr.className = 'vp-frame-row';
-      fr.innerHTML = `
-        <span class="vp-frame-label">${escHtml(initialName)}</span>
-        <div class="frame-picker-wrap">
-          <input type="text" class="map-node-id" data-vp="${escHtml(initialName)}"
-                 placeholder="Node ID or Figma link" autocomplete="off" spellcheck="false"
-                 oninput="autoExtractNodeId(this); filterFramePicker(this)"
-                 onfocus="openFramePicker(this)"
-                 onclick="openFramePicker(this)"
-                 onkeydown="navFramePicker(event, this)">
-          <div class="frame-picker-dropdown">
-            <div class="frame-picker-list"></div>
-          </div>
-        </div>`;
-      vpFields.appendChild(fr);
-    });
-  }
-}
-
-function getViewports() {
-  return Array.from(document.querySelectorAll('.viewport-row')).map(row => {
-    const name = row.querySelector('.vp-name').value.trim() || 'Custom';
-    return {
-      name,
-      width:  parseInt(row.querySelector('.vp-width').value) || 1440,
-      height: VP_HEIGHTS[name] || 900,
-    };
-  }).filter(vp => vp.width > 0);
-}
-
-// ── Page mapping rows ─────────────────────────────────────────────────────────
-function addMappingRow(path = '', frames = {}) {
-  const viewports = getViewports().length > 0 ? getViewports() : DEFAULT_VIEWPORTS;
-  _addMappingRowInternal(path, frames, viewports);
-}
-
-function _addMappingRowInternal(path, frames, viewports) {
-  const row = document.createElement('div');
-  row.className = 'mapping-row';
-
-  const vpFields = viewports.map(vp => `
-    <div class="vp-frame-row">
-      <span class="vp-frame-label">${escHtml(vp.name)}</span>
-      <div class="frame-picker-wrap">
-        <input type="text" class="map-node-id" data-vp="${escHtml(vp.name)}"
-               value="${escHtml(frames[vp.name] || '')}"
-               placeholder="Node ID or Figma link"
-               spellcheck="false" autocomplete="off"
-               oninput="autoExtractNodeId(this); filterFramePicker(this)"
-               onfocus="openFramePicker(this)"
-               onclick="openFramePicker(this)"
-               onkeydown="navFramePicker(event, this)">
-        <div class="frame-picker-dropdown">
-          <div class="frame-picker-list"></div>
-        </div>
-      </div>
-    </div>`).join('');
-
-  row.innerHTML = `
-    <div class="mapping-path-row">
-      <div style="display:flex;flex-direction:column;gap:4px;flex:1;min-width:0">
-        <div class="path-picker-wrap">
-          <input type="text" class="map-path" value="${escHtml(path)}" placeholder="/framer-page-path"
-                 autocomplete="off" spellcheck="false"
-                 oninput="autoExtractPath(this); filterPathPicker(this)"
-                 onfocus="openPathPicker(this)"
-                 onclick="openPathPicker(this)"
-                 onkeydown="navPathPicker(event, this)">
-          <div class="path-picker-dropdown"></div>
-        </div>
-        <span class="extracted-hint map-path-hint"></span>
-      </div>
-      <button class="del-btn" onclick="this.closest('.mapping-row').remove()" title="Remove">×</button>
-    </div>
-    <div class="mapping-vp-fields">${vpFields}</div>`;
-
-  document.getElementById('mappings-table').appendChild(row);
-}
-
-// Returns ALL mapping rows (for save/load — preserves paths even without node IDs)
-function getMappings() {
-  return Array.from(document.querySelectorAll('.mapping-row'))
-    .map(row => {
-      const raw = row.querySelector('.map-path').value.trim();
-      const path = raw.replace(/\/+$/, '') || '/';
-      const frames = {};
-      row.querySelectorAll('.map-node-id').forEach(input => {
-        const vp  = input.dataset.vp;
-        const val = input.value.trim();
-        if (vp && val) frames[vp] = val;
-      });
-      return { path, frames };
-    });
-}
-
-// Returns only rows with both path AND at least one node ID (for sending to backend)
-function getMappingsForJob() {
-  return getMappings().filter(r => r.path && Object.keys(r.frames).length > 0);
-}
-
-// ── Page path auto-extraction from full URL ───────────────────────────────────
-function autoExtractPath(input) {
-  const val = input.value;
-  const hint = input.closest('.mapping-path-row').querySelector('.map-path-hint');
-
-  // If it looks like a full URL, extract the pathname
-  if (val.startsWith('http')) {
-    try {
-      const url = new URL(val);
-      const extracted = url.pathname.replace(/\/+$/, '') || '/';
-      if (extracted !== val) {
-        input.value = extracted;
-        hint.innerHTML = `Extracted path: <code>${escHtml(extracted)}</code>`;
-        hint.classList.add('visible');
-        setTimeout(() => hint.classList.remove('visible'), 4000);
-      }
-    } catch (e) {
-      hint.classList.remove('visible');
-    }
-    return;
-  }
-
-  // Auto-prefix "/" — if user types "room" make it "/room"
-  if (val && !val.startsWith('/')) {
-    const cursorPos = input.selectionStart;
-    input.value = '/' + val;
-    input.setSelectionRange(cursorPos + 1, cursorPos + 1);
-  }
-  hint.classList.remove('visible');
-}
-
-// ── Figma File ID auto-extraction ─────────────────────────────────────────────
-function autoExtractFileId(input) {
-  const val = input.value.trim();
-  const match = val.match(/figma\.com\/(?:design|file|proto)\/([A-Za-z0-9]+)/);
-  if (match) {
-    const extracted = match[1];
-    input.value = extracted;
-    input.style.borderColor = 'var(--pass)';
-    setTimeout(() => input.style.borderColor = '', 2000);
-    const hint = document.getElementById('file-id-hint');
-    hint.innerHTML = `✓ Extracted from URL: <code>${escHtml(extracted)}</code>`;
-    hint.classList.add('visible');
-  }
-}
-
-// ── Node ID auto-extraction from frame link ───────────────────────────────────
-function autoExtractNodeId(input) {
-  const val = input.value.trim();
-  // Match ?node-id=123-456 (or 123:456 already)
-  const match = val.match(/node-id=([0-9]+)[:\-]([0-9]+)/);
-  if (match) {
-    const nodeId = `${match[1]}:${match[2]}`;
-    input.value = nodeId;
-    input.style.borderColor = 'var(--pass)';
-    setTimeout(() => input.style.borderColor = '', 2000);
-  }
-}
-
-// ── Figma frame store (node_id → name, plus full list for picker) ────────────
-const _frameNames = {};    // node_id → display name
-let   _framesList = [];    // full list [{name, node_id, page, section, dev_ready}]
-
-// ── Figma frame discovery ─────────────────────────────────────────────────────
-async function fetchFrames() {
-  const token        = document.getElementById('figma-token').value.trim();
-  const fileId       = document.getElementById('figma-file-id').value.trim();
-  const onlyDevReady = document.getElementById('only-dev-ready').checked;
-
-  if (!token || !fileId) return;
-
-  try {
-    const res  = await fetch('/api/figma/frames', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ api_token: token, file_id: fileId, only_dev_ready: onlyDevReady }),
-    });
-    const data = await res.json();
-    if (data.error) throw new Error(data.error);
-
-    if (!data.frames.length) {
-      const hint = onlyDevReady
-        ? 'No "Ready for Dev" frames found — try unchecking "Ready for Dev only" and fetching again.'
-        : 'No frames found in this file.';
-      showToast(hint, true);
-    } else {
-      _framesList = data.frames;
-      data.frames.forEach(f => { _frameNames[f.node_id] = f.name; });
-      showToast(`${data.frames.length} frame${data.frames.length !== 1 ? 's' : ''} loaded — click any node field to pick`);
-    }
-  } catch (err) {
-    showToast('Figma error: ' + err.message, true);
-  }
-}
-
-// ── Page discovery + path picker dropdown ────────────────────────────────────
-let _sitePages = [];   // discovered paths from sitemap
-
-function onSiteUrlChange() {
-  _sitePages = [];
-  resetFetchBtn();
-}
-
-function resetFetchBtn() {
-  const btn = document.getElementById('fetch-btn');
-  if (!btn) return;
-  btn.disabled = false;
-  btn.textContent = 'Fetch';
-  btn.style.background = 'var(--accent)';
-}
-
-async function fetchAll() {
-  const siteUrl    = document.getElementById('site-url').value.trim();
-  const figmaToken = document.getElementById('figma-token').value.trim();
-  const figmaFile  = document.getElementById('figma-file-id').value.trim();
-  const hasSite    = siteUrl && siteUrl.startsWith('http');
-  const hasFigma   = figmaToken && figmaFile;
-
-  if (!hasSite && !hasFigma) {
-    showToast('Enter a Site URL or Figma credentials first.', true);
-    return;
-  }
-
-  const btn = document.getElementById('fetch-btn');
-  btn.disabled = true;
-  btn.style.opacity = '0.8';
-  btn.textContent = 'Fetching…';
-
-  // Track success per task so we only go green if something actually worked
-  let anySuccess = false;
-
-  const tasks = [];
-  if (hasSite)  tasks.push(discoverPages(siteUrl).then(() => { if (_sitePages.length)  anySuccess = true; }).catch(() => {}));
-  if (hasFigma) tasks.push(fetchFrames().then(() => { if (_framesList.length) anySuccess = true; }).catch(() => {}));
-  await Promise.all(tasks);
-
-  btn.disabled = false;
-  btn.style.opacity = '1';
-  if (anySuccess) {
-    btn.textContent = '✓ Fetched';
-    btn.style.background = '#12b76a';
-  } else {
-    btn.textContent = 'Fetch';
-    btn.style.background = '';
-  }
-}
-
-async function discoverPages(url) {
-  url = url || document.getElementById('site-url').value.trim();
-  if (!url || !url.startsWith('http')) return;
-  try {
-    const res  = await fetch('/api/pages?' + new URLSearchParams({ url }));
-    const data = await res.json();
-    if (data.error) throw new Error(data.error);
-    _sitePages = data.paths;
-    showToast(`Found ${_sitePages.length} page${_sitePages.length !== 1 ? 's' : ''} — click any path field to pick`);
-  } catch (e) {
-    showToast('Could not discover pages: ' + e.message, true);
-  }
-}
-
-function openPathPicker(input) {
-  if (!_sitePages.length) return;
-  const dropdown = input.nextElementSibling;
-  renderPathPickerList(input, dropdown, input.value);
-  dropdown.classList.add('open');
-  document.querySelectorAll('.path-picker-dropdown.open').forEach(d => {
-    if (d !== dropdown) d.classList.remove('open');
-  });
-}
-
-function renderPathPickerList(input, dropdown, query) {
-  const q = query.toLowerCase().replace(/^\//, '').trim();
-  const filtered = q
-    ? _sitePages.filter(p => p.toLowerCase().includes(q))
-    : _sitePages;
-  if (!filtered.length) {
-    dropdown.innerHTML = '<div class="path-picker-empty">No pages match</div>';
-    return;
-  }
-  dropdown.innerHTML = filtered.map((p, i) =>
-    `<div class="path-picker-item" data-path="${escHtml(p)}" data-idx="${i}"
-          onmousedown="pickPath(event, this)">${escHtml(p)}</div>`
-  ).join('');
-}
-
-function filterPathPicker(input) {
-  const dropdown = input.nextElementSibling;
-  if (!dropdown || !dropdown.classList.contains('open')) return;
-  renderPathPickerList(input, dropdown, input.value);
-}
-
-function pickPath(e, item) {
-  e.preventDefault();
-  const dropdown = item.closest('.path-picker-dropdown');
-  const input    = dropdown.previousElementSibling;
-  input.value = item.dataset.path;
-  dropdown.classList.remove('open');
-}
-
-function navPathPicker(e, input) {
-  const dropdown = input.nextElementSibling;
-  if (!dropdown || !dropdown.classList.contains('open')) return;
-  const items = dropdown.querySelectorAll('.path-picker-item');
-  if (!items.length) return;
-  const current = dropdown.querySelector('.path-picker-item.highlighted');
-  let idx = current ? parseInt(current.dataset.idx) : -1;
-  if (e.key === 'ArrowDown')      { e.preventDefault(); idx = Math.min(idx + 1, items.length - 1); }
-  else if (e.key === 'ArrowUp')   { e.preventDefault(); idx = Math.max(idx - 1, 0); }
-  else if (e.key === 'Enter' && current) { e.preventDefault(); pickPath(e, current); return; }
-  else if (e.key === 'Escape')    { dropdown.classList.remove('open'); return; }
-  else return;
-  items.forEach(i => i.classList.remove('highlighted'));
-  const target = dropdown.querySelector(`.path-picker-item[data-idx="${idx}"]`);
-  if (target) { target.classList.add('highlighted'); target.scrollIntoView({ block: 'nearest' }); }
-}
-
-// Close path picker when clicking outside or tabbing away
-document.addEventListener('mousedown', e => {
-  if (!e.target.closest('.path-picker-wrap')) {
-    document.querySelectorAll('.path-picker-dropdown.open').forEach(d => d.classList.remove('open'));
-  }
-});
-document.addEventListener('focusout', e => {
-  const wrap = e.target.closest('.path-picker-wrap');
-  if (wrap && !wrap.contains(e.relatedTarget)) {
-    wrap.querySelector('.path-picker-dropdown')?.classList.remove('open');
-  }
-});
-
-// ── Frame picker dropdown ─────────────────────────────────────────────────────
-
-function openFramePicker(input) {
-  if (!_framesList.length) return;  // no frames fetched yet — plain text input
-  const dropdown = input.nextElementSibling;
-  renderFramePickerList(input, dropdown, input.value);  // filter by whatever is already typed
-  dropdown.classList.add('open');
-  // Close all other open dropdowns
-  document.querySelectorAll('.frame-picker-dropdown.open').forEach(d => {
-    if (d !== dropdown) d.classList.remove('open');
-  });
-}
-
-function renderFramePickerList(input, dropdown, query) {
-  const list = dropdown.querySelector('.frame-picker-list');
-  const q = query.toLowerCase().trim();
-  const filtered = q
-    ? _framesList.filter(f => f.name.toLowerCase().includes(q) || f.page.toLowerCase().includes(q))
-    : _framesList;
-
-  if (!filtered.length) {
-    list.innerHTML = '<div class="frame-picker-empty">No frames match</div>';
-    return;
-  }
-
-  list.innerHTML = filtered.map((f, i) => {
-    const devBadge = f.dev_ready ? ' <span style="color:#12b76a;font-size:10px">✓</span>' : '';
-    const sectionLabel = f.section ? `${f.section} / ` : '';
-    return `<div class="frame-picker-item" data-node-id="${escHtml(f.node_id)}" data-idx="${i}"
-              onmousedown="pickFrame(event, this)">
-      <span class="fp-name">${escHtml(sectionLabel + f.name)}${devBadge}</span>
-      <span class="fp-meta">${escHtml(f.page)} · ${escHtml(f.node_id)}</span>
-    </div>`;
-  }).join('');
-}
-
-function filterFramePicker(input) {
-  const dropdown = input.nextElementSibling;
-  if (!dropdown || !dropdown.classList.contains('open')) return;
-  renderFramePickerList(input, dropdown, input.value);
-}
-
-function pickFrame(e, item) {
-  e.preventDefault();
-  const dropdown = item.closest('.frame-picker-dropdown');
-  const input    = dropdown.previousElementSibling;
-  input.value = item.dataset.nodeId;
-  input.style.borderColor = 'var(--pass)';
-  setTimeout(() => input.style.borderColor = '', 2000);
-  dropdown.classList.remove('open');
-  // Show the frame name as a hint below the input
-  const hint = input.closest('.mapping-path-row') ? null
-    : input.closest('.vp-frame-row').querySelector('.map-path-hint');
-  // trigger autoExtract in case node ID was pasted from picker
-  autoExtractNodeId(input);
-}
-
-function navFramePicker(e, input) {
-  const actualDropdown = input.nextElementSibling;
-  if (!actualDropdown || !actualDropdown.classList.contains('open')) return;
-
-  const items = actualDropdown.querySelectorAll('.frame-picker-item');
-  if (!items.length) return;
-
-  const current = actualDropdown.querySelector('.frame-picker-item.highlighted');
-  let idx = current ? parseInt(current.dataset.idx) : -1;
-
-  if (e.key === 'ArrowDown') {
-    e.preventDefault();
-    idx = Math.min(idx + 1, items.length - 1);
-  } else if (e.key === 'ArrowUp') {
-    e.preventDefault();
-    idx = Math.max(idx - 1, 0);
-  } else if (e.key === 'Enter' && current) {
-    e.preventDefault();
-    pickFrame(e, current);
-    return;
-  } else if (e.key === 'Escape') {
-    actualDropdown.classList.remove('open');
-    return;
-  } else {
-    return;
-  }
-
-  items.forEach(i => i.classList.remove('highlighted'));
-  const target = actualDropdown.querySelector(`.frame-picker-item[data-idx="${idx}"]`);
-  if (target) { target.classList.add('highlighted'); target.scrollIntoView({block: 'nearest'}); }
-}
-
-// Close frame picker when clicking outside or tabbing away
-document.addEventListener('mousedown', e => {
-  if (!e.target.closest('.frame-picker-wrap')) {
-    document.querySelectorAll('.frame-picker-dropdown.open').forEach(d => d.classList.remove('open'));
-  }
-});
-document.addEventListener('focusout', e => {
-  const wrap = e.target.closest('.frame-picker-wrap');
-  if (wrap && !wrap.contains(e.relatedTarget)) {
-    wrap.querySelector('.frame-picker-dropdown')?.classList.remove('open');
-  }
-});
-
 // ── Start job ─────────────────────────────────────────────────────────────────
 async function startJob() {
   hideError();
@@ -1477,41 +675,12 @@ async function startJob() {
   if (!siteUrl.startsWith('http')) { showError('Site URL must start with http:// or https://'); return; }
 
   const body = {
-    site_url:          siteUrl,
-    figma_token:       document.getElementById('figma-token').value.trim(),
-    figma_file_id:     document.getElementById('figma-file-id').value.trim(),
-    page_frames:       getMappingsForJob(),
-    viewports:         getViewports(),
-    diff_threshold:    parseInt(document.getElementById('diff-threshold').value) || 10,
-    timeout_ms:        parseInt(document.getElementById('timeout-ms').value) || 15000,
-    seo_only:          document.getElementById('seo-only').checked,
-    skip_css_extract:  document.getElementById('skip-css-extract').checked,
-    frame_names:       Object.assign({}, _frameNames),  // node_id → name for readable logs
+    site_url:   siteUrl,
+    timeout_ms: 15000,
   };
 
   document.getElementById('run-btn').disabled = true;
   document.getElementById('run-btn').textContent = 'Starting…';
-
-  // Validate Figma credentials before launching the job
-  const figmaToken  = document.getElementById('figma-token').value.trim();
-  const figmaFileId = document.getElementById('figma-file-id').value.trim();
-  const seoOnly     = document.getElementById('seo-only').checked;
-  if (figmaToken && figmaFileId && !seoOnly) {
-    document.getElementById('run-btn').textContent = 'Validating Figma…';
-    try {
-      const vRes  = await fetch('/api/figma/validate', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ api_token: figmaToken, file_id: figmaFileId }),
-      });
-      const vData = await vRes.json();
-      if (!vData.ok) {
-        showError(`Figma validation failed: ${vData.error}`);
-        document.getElementById('run-btn').disabled = false;
-        document.getElementById('run-btn').textContent = 'Run QA Check';
-        return;
-      }
-    } catch (e) { /* non-blocking — if validation itself errors, proceed */ }
-  }
 
   try {
     const res  = await fetch('/api/run', {
@@ -1600,12 +769,26 @@ function appendLog(msg, cls = '') {
     else if (msg.includes('⚠️') || msg.includes('⚠'))  cls = 'warn';
     else if (msg.includes('❌'))     cls = 'fail';
     else if (msg.startsWith('═') || msg.startsWith('─')) cls = 'sep';
-    else if (msg.startsWith('📄') || msg.startsWith('🗺') ||
+    else if (msg.startsWith('📄') || msg.startsWith('🔗') ||
              msg.startsWith('📊') || msg.startsWith('🔍')) cls = 'em';
   }
   const line = document.createElement('div');
   line.className = 'log-line' + (cls ? ' ' + cls : '');
-  line.textContent = msg;
+  const emojiMatch = msg.match(/^[\s]*(\p{Emoji_Presentation}[\uFE0F\u20E3]?)\s*/u);
+  const icon = document.createElement('span');
+  icon.className = 'log-icon';
+  const text = document.createElement('span');
+  text.className = 'log-text';
+  const remaining = emojiMatch ? msg.slice(emojiMatch[0].length) : '';
+  const hasMoreEmoji = /\p{Emoji_Presentation}/u.test(remaining);
+  if (emojiMatch && !hasMoreEmoji) {
+    icon.textContent = emojiMatch[1];
+    text.textContent = remaining;
+  } else {
+    text.textContent = msg.trimStart();
+  }
+  line.appendChild(icon);
+  line.appendChild(text);
   body.appendChild(line);
   body.scrollTop = body.scrollHeight;
 }
@@ -1627,10 +810,16 @@ async function loadHistory() {
       const favicon = j.favicon_url
         ? `<img class="history-favicon" src="${escHtml(j.favicon_url)}" alt="" onerror="this.outerHTML='<div class=\\'history-favicon-placeholder\\'>🌐</div>'">`
         : `<div class="history-favicon-placeholder">🌐</div>`;
+      const pills = (j.status === 'done' && j.total_pass != null) ? `
+        <div class="history-pills">
+          <span class="history-pill pass">✅ ${j.total_pass}</span>
+          <span class="history-pill warn">⚠️ ${j.total_warn}</span>
+          <span class="history-pill fail">❌ ${j.total_fail}</span>
+        </div>` : '';
       const actions = `
         <div class="history-item-actions">
-          <span class="history-status ${j.status}">${j.status}</span>
-          ${j.report_url ? `<button class="history-report-btn" onclick="loadHistoryReport('${j.report_url}')">View report</button>` : ''}
+          ${pills}
+          ${j.report_url ? `<button class="history-report-btn" onclick="loadHistoryReport('${j.report_url}')">View report</button>` : `<span class="history-status ${j.status}">${j.status}</span>`}
           ${j.status === 'done' ? `<button class="history-rerun-btn" onclick="rerunJob('${j.id}')">↩ Re-run</button>` : ''}
         </div>`;
       return `

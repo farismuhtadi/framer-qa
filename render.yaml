@@ -1,0 +1,18 @@
+services:
+  - type: web
+    name: framer-qa
+    runtime: docker
+    plan: starter
+    envVars:
+      - key: SECRET_KEY
+        generateValue: true
+      - key: PORT
+        value: 8080
+      - key: MAX_JOBS
+        value: 2
+      - key: JOB_TTL_HOURS
+        value: 48
+    disk:
+      name: reports
+      mountPath: /app/reports
+      sizeGB: 1

@@ -14,7 +14,9 @@ Page-level (run per page):
   - Robots meta
 """
 
+import re
 import requests
+from urllib.parse import urlparse, unquote
 from playwright.async_api import Page
 
 
@@ -51,6 +53,22 @@ _EXTRACT_JS = """() => {
     const brokenImages = Array.from(document.querySelectorAll('img'))
         .filter(img => img.complete && (img.naturalWidth === 0 || img.naturalHeight === 0) && img.src && !img.src.startsWith('data:'))
         .map(img => img.src);
+
+    // Images missing meaningful alt text — catches both missing alt and empty alt=""
+    // Skip small images (icons/decorative) under 50px in either dimension
+    const imagesWithoutAlt = Array.from(document.querySelectorAll('img'))
+        .filter(img => {
+            if (!img.src || img.src.startsWith('data:')) return false;
+            const hasAlt = img.hasAttribute('alt') && img.getAttribute('alt').trim() !== '';
+            if (hasAlt) return false;
+            // skip likely decorative/icon images
+            const w = img.naturalWidth || img.width;
+            const h = img.naturalHeight || img.height;
+            if (w > 0 && w < 50 && h > 0 && h < 50) return false;
+            return true;
+        })
+        .map(img => img.src.split('/').pop().split('?')[0] || img.src)
+        .slice(0, 10);
 
     // Placeholder text — lorem ipsum variants
     const bodyText = (document.body && document.body.innerText) || '';
@@ -99,6 +117,7 @@ _EXTRACT_JS = """() => {
         h1_texts:            h1Els.map(el => el.innerText.trim()).filter(Boolean),
         internal_links:      [...new Set(internalLinks)],
         broken_images:       [...new Set(brokenImages)],
+        images_without_alt:  [...new Set(imagesWithoutAlt)],
         placeholder_matches: placeholderMatches,
         perf:                perf,
     };
@@ -255,6 +274,17 @@ def _score_page_checks(raw: dict, page_url: str, console_errors: list = None) ->
     else:
         checks.append(_check("Canonical URL", "pass", canonical, canonical))
 
+    # URL slug — check for non-ASCII characters (accented, Icelandic, etc.)
+    path = urlparse(page_url).path
+    decoded_path = unquote(path)
+    bad_chars = list(set(re.findall(r'[^\x00-\x7F]', decoded_path)))
+    if bad_chars:
+        checks.append(_check("URL Slug", "warn",
+                             f"Contains special characters: {''.join(bad_chars[:8])} — may cause issues with crawlers and sharing",
+                             decoded_path))
+    else:
+        checks.append(_check("URL Slug", "pass", "No special characters in slug", None))
+
     # Robots — only surface when something is actually blocking indexing
     robots = raw.get("robots")
     if robots and ("noindex" in robots.lower() or "nofollow" in robots.lower()):
@@ -281,6 +311,16 @@ def _score_page_checks(raw: dict, page_url: str, console_errors: list = None) ->
                              "\n".join(broken_imgs)))
     else:
         checks.append(_check("Broken Images", "pass", "All images loaded successfully", None))
+
+    # Image alt text
+    missing_alt = raw.get("images_without_alt") or []
+    if missing_alt:
+        count = len(missing_alt)
+        checks.append(_check("Image Alt Text", "warn",
+                             f"{count} image{'s' if count != 1 else ''} missing alt text",
+                             None))
+    else:
+        checks.append(_check("Image Alt Text", "pass", "All images have alt text", None))
 
     # Placeholder content
     placeholders = raw.get("placeholder_matches") or []

@@ -18,9 +18,7 @@ import asyncio
 import builtins
 import json
 import os
-import re
 import shutil
-import sys
 import threading
 import time
 import uuid
@@ -72,6 +70,9 @@ class Job:
         self.progress = 0.0          # 0.0 – 1.0
         self.report_url: str | None = None
         self.favicon_url: str | None = None
+        self.total_pass: int | None = None
+        self.total_warn: int | None = None
+        self.total_fail: int | None = None
         self.error: str | None = None
         self.created_at = time.time()
         self._lock = threading.Lock()
@@ -79,7 +80,6 @@ class Job:
     def append_log(self, msg: str):
         with self._lock:
             self.logs.append(msg)
-            # Infer rough progress from log content
             self._update_progress(msg)
 
     def _update_progress(self, msg: str):
@@ -88,12 +88,6 @@ class Job:
             self.progress = 0.05
         elif "Running SEO checks" in msg:
             self.progress = min(self.progress + 0.08, 0.85)
-        elif "Screenshot:" in msg:
-            self.progress = min(self.progress + 0.05, 0.90)
-        elif "Fetching Figma" in msg:
-            self.progress = min(self.progress + 0.04, 0.92)
-        elif "Visual match" in msg:
-            self.progress = min(self.progress + 0.03, 0.95)
         elif "Generating HTML report" in msg:
             self.progress = 0.97
 
@@ -108,6 +102,9 @@ class Job:
                 "report_url":  self.report_url,
                 "error":       self.error,
                 "created_at":  self.created_at,
+                "total_pass":  self.total_pass,
+                "total_warn":  self.total_warn,
+                "total_fail":  self.total_fail,
             }
 
 
@@ -137,7 +134,6 @@ def _thread_run_job(job_id: str):
         job.status = "done"
         job.progress = 1.0
         if report_path:
-            # Make URL relative to /reports/<job_id>/report.html
             job.report_url = f"/reports/{job_id}/report.html"
     except Exception as exc:
         job.status = "error"
@@ -151,63 +147,38 @@ def _thread_run_job(job_id: str):
 
 
 async def _run_qa(job: "Job") -> str | None:
-    """Core async QA runner — uses the existing modules."""
-    # Import here so print-patching is active for all module-level prints
+    """Core async QA runner — SEO checks only."""
     from modules.crawler     import get_pages_from_sitemap
     from modules.screenshots import ScreenshotTaker
-    from modules.figma       import FigmaClient
-    from modules.comparator  import compare_images
     from modules.reporter    import generate_report
 
-    config    = job.config
-    site_url  = config["site_url"].rstrip("/")
-    viewports = config["viewports"]
-    figma_cfg = config.get("figma", {})
-    has_figma = bool(
-        figma_cfg.get("api_token")
-        and figma_cfg.get("file_id")
-        and any(figma_cfg.get("page_frames", {}).values())
-    )
+    config   = job.config
+    site_url = config["site_url"].rstrip("/")
 
-    # Output dirs
+    # Output dir
     timestamp  = datetime.now().strftime("%Y-%m-%d_%H%M%S")
     output_dir = os.path.join(REPORTS_DIR, job.id)
-    shots_dir  = os.path.join(output_dir, "screenshots")
-    os.makedirs(shots_dir, exist_ok=True)
+    os.makedirs(output_dir, exist_ok=True)
 
     print(f"{'═'*55}")
     print(f"  Framer QA — {site_url}")
-    print(f"  Figma: {'enabled' if has_figma else 'skipped'}")
-    print(f"  Viewports: {', '.join(v['name'] for v in viewports)}")
     print(f"{'═'*55}")
 
     # Discover pages
-    print("\n🗺  Discovering pages from sitemap...")
+    print("\n🔗  Discovering pages from sitemap...")
     pages = get_pages_from_sitemap(site_url)
     print(f"   Found {len(pages)} page(s)")
 
-    # Helpers
     def page_path(url):
         p = url.replace(site_url, "").strip().rstrip("/")
         return p or "/"
 
-    def safe_name(path):
-        return path.strip("/").replace("/", "_") or "home"
-
-    seo_only     = config.get("seo_only", False)
-    figma_client = FigmaClient(figma_cfg["api_token"], figma_cfg["file_id"]) if (has_figma and not seo_only) else None
-
-    if seo_only:
-        print("ℹ️  SEO-only mode — skipping screenshots and Figma comparison.")
-
     results = []
     total = len(pages)
 
-    # Single browser instance for the entire job — site SEO + all page work.
-    # Previously two ScreenshotTaker blocks were used (two Chrome processes, ~2× RAM).
-    async with ScreenshotTaker(viewports, config.get("timeout_ms", 15000)) as taker:
+    async with ScreenshotTaker(timeout_ms=config.get("timeout_ms", 15000)) as taker:
 
-        # Site-level SEO — run once on the homepage inside the shared browser
+        # Site-level SEO — homepage check
         site_seo = None
         print("\n🌐 Checking site-level SEO (language, favicon, social preview)...")
         try:
@@ -223,103 +194,17 @@ async def _run_qa(job: "Job") -> str | None:
             print(f"📄 [{idx+1}/{total}] {path}")
             job.progress = 0.05 + (idx / total) * 0.88
 
-            vp_results = []
-            if seo_only:
-                # SEO-only: one page load for the check, no screenshots
-                print("   🔎 Running SEO checks...")
-                try:
-                    seo = await taker.check_seo(page_url)
-                    print(f"   ✅ {seo['pass_count']} pass  ⚠️  {seo['warn_count']} warn  ❌ {seo['fail_count']} fail")
-                except Exception as e:
-                    print(f"   ⚠️  SEO check failed: {e}")
-                    seo = {"url": page_url, "raw": {}, "checks": [], "pass_count": 0, "warn_count": 0, "fail_count": 1}
-                for vp in viewports:
-                    vp_results.append({"viewport": vp, "live_path": None,
-                                       "figma_path": None, "diff_path": None, "similarity": None})
-                results.append({"url": page_url, "path": path, "seo": seo, "viewports": vp_results})
-                continue
-
-            # Full mode: combine SEO check + first viewport screenshot into one navigation,
-            # then take remaining viewport screenshots separately.
-            seo = None
-            for vp_idx, vp in enumerate(viewports):
-                print(f"   📸 Screenshot: {vp['name']} ({vp['width']}px)...")
-                live_path = None
-                try:
-                    if vp_idx == 0:
-                        # First viewport — run SEO check and screenshot together (one page load)
-                        print("   🔎 Running SEO checks (combined with first screenshot)...")
-                        seo, live_bytes = await taker.check_seo_and_screenshot(page_url, vp)
-                        print(f"   ✅ {seo['pass_count']} pass  ⚠️  {seo['warn_count']} warn  ❌ {seo['fail_count']} fail")
-                    else:
-                        live_bytes = await taker.take_screenshot(page_url, vp)
-                    live_path = os.path.join(shots_dir, f"{safe_name(path)}_{vp['name'].lower()}_live.png")
-                    with open(live_path, "wb") as f:
-                        f.write(live_bytes)
-                except Exception as e:
-                    print(f"   ⚠️  Screenshot failed: {e}")
-                    if vp_idx == 0 and seo is None:
-                        # SEO check also failed since it's combined — fall back to separate check
-                        try:
-                            seo = await taker.check_seo(page_url)
-                        except Exception:
-                            seo = {"url": page_url, "raw": {}, "checks": [], "pass_count": 0, "warn_count": 0, "fail_count": 1}
-
-                # Figma comparison for this viewport
-                figma_path = diff_path = None
-                similarity = None
-                annotations = []
-                if has_figma and live_path:
-                    frames_for_page = figma_cfg["page_frames"].get(path, {})
-                    node_id = frames_for_page.get(vp["name"])
-                    if node_id:
-                        frame_names = config.get("frame_names", {})
-                        frame_label = frame_names.get(node_id, "")
-                        frame_display = f"'{frame_label}' ({node_id})" if frame_label else node_id
-                        print(f"   🎨 Fetching Figma frame {frame_display}...")
-                        try:
-                            figma_bytes = figma_client.export_frame(node_id, vp["width"])
-                            if figma_bytes:
-                                figma_path = os.path.join(shots_dir, f"{safe_name(path)}_{vp['name'].lower()}_figma.png")
-                                diff_path  = os.path.join(shots_dir, f"{safe_name(path)}_{vp['name'].lower()}_diff.png")
-                                with open(figma_path, "wb") as f:
-                                    f.write(figma_bytes)
-                                similarity, regions = compare_images(
-                                    live_path, figma_path, diff_path,
-                                    threshold=config.get("diff_threshold", 10),
-                                )
-                                icon = "✅" if similarity >= 95 else "⚠️ "
-                                print(f"   {icon} Visual match: {similarity:.1f}%")
-
-                                # CSS annotation — inspect DOM at changed regions
-                                # (can be skipped via skip_css_extract option)
-                                if regions and not config.get("skip_css_extract", False):
-                                    print(f"   🔬 Extracting CSS at {len(regions)} changed region(s)...")
-                                    try:
-                                        annotations = await taker.extract_styles_at_regions(page_url, vp, regions)
-                                        print(f"   ✅ Got styles for {len(annotations)} region(s)")
-                                    except Exception as ann_e:
-                                        print(f"   ⚠️  CSS extraction failed: {ann_e}")
-                        except Exception as e:
-                            print(f"   ⚠️  Figma comparison failed: {e}")
-                    else:
-                        print(f"   ℹ️  No Figma frame mapped for '{path}'")
-
-                vp_results.append({
-                    "viewport":    vp,
-                    "live_path":   live_path,
-                    "figma_path":  figma_path,
-                    "diff_path":   diff_path,
-                    "similarity":  similarity,
-                    "annotations": annotations,
-                })
-
-            if seo is None:
+            print("   🔎 Running SEO checks...")
+            try:
+                seo = await taker.check_seo(page_url)
+                print(f"   ✅ {seo['pass_count']} pass  ⚠️  {seo['warn_count']} warn  ❌ {seo['fail_count']} fail")
+            except Exception as e:
+                print(f"   ⚠️  SEO check failed: {e}")
                 seo = {"url": page_url, "raw": {}, "checks": [], "pass_count": 0, "warn_count": 0, "fail_count": 1}
 
-            results.append({"url": page_url, "path": path, "seo": seo, "viewports": vp_results})
+            results.append({"url": page_url, "path": path, "seo": seo})
 
-    # Post-processing: flag duplicate meta titles/descriptions across pages
+    # Flag duplicate meta titles/descriptions across pages
     _flag_duplicate_meta(results)
 
     print(f"\n{'═'*55}")
@@ -327,11 +212,16 @@ async def _run_qa(job: "Job") -> str | None:
     report_path = generate_report(results, config, output_dir, timestamp, site_seo=site_seo)
     print(f"✅ Done! Report ready.")
 
-    # Extract favicon from site SEO for history thumbnails
     if site_seo:
         job.favicon_url = site_seo.get("raw", {}).get("favicon_href")
 
-    # Persist job metadata so history survives server restarts
+    total_pass = sum(r["seo"]["pass_count"] for r in results)
+    total_warn = sum(r["seo"]["warn_count"] for r in results)
+    total_fail = sum(r["seo"]["fail_count"] for r in results)
+    job.total_pass = total_pass
+    job.total_warn = total_warn
+    job.total_fail = total_fail
+
     _save_job_meta(job, f"/reports/{job.id}/report.html")
 
     return report_path
@@ -340,11 +230,7 @@ async def _run_qa(job: "Job") -> str | None:
 # ── Duplicate meta detection ─────────────────────────────────────────────────
 
 def _flag_duplicate_meta(results: list):
-    """
-    After all pages are scanned, flags pages that share identical
-    meta titles or meta descriptions with other pages.
-    Mutates each result's seo["checks"] list in place.
-    """
+    """Flags pages sharing identical meta titles or descriptions."""
     title_map: dict[str, list[str]] = {}
     desc_map:  dict[str, list[str]] = {}
 
@@ -389,7 +275,6 @@ def _flag_duplicate_meta(results: list):
 # ── History persistence ───────────────────────────────────────────────────────
 
 def _save_job_meta(job: "Job", report_url: str):
-    """Saves job metadata to disk so history survives server restarts."""
     try:
         meta = {
             "id":          job.id,
@@ -398,7 +283,10 @@ def _save_job_meta(job: "Job", report_url: str):
             "created_at":  job.created_at,
             "report_url":  report_url,
             "favicon_url": job.favicon_url,
-            "config":      job.config,   # stored for re-run
+            "total_pass":  job.total_pass,
+            "total_warn":  job.total_warn,
+            "total_fail":  job.total_fail,
+            "config":      job.config,
         }
         job_dir = os.path.join(REPORTS_DIR, job.id)
         os.makedirs(job_dir, exist_ok=True)
@@ -409,7 +297,6 @@ def _save_job_meta(job: "Job", report_url: str):
 
 
 def _load_disk_jobs() -> list[dict]:
-    """Scans REPORTS_DIR for persisted meta.json files."""
     disk_jobs = []
     try:
         for job_id in os.listdir(REPORTS_DIR):
@@ -428,9 +315,8 @@ def _load_disk_jobs() -> list[dict]:
 # ── Cleanup ───────────────────────────────────────────────────────────────────
 
 def _cleanup_old_jobs():
-    """Removes jobs and reports older than JOB_TTL_SECONDS."""
     while True:
-        time.sleep(3600)  # run hourly
+        time.sleep(3600)
         cutoff = time.time() - JOB_TTL_SECONDS
         with _jobs_lock:
             stale = [jid for jid, j in _jobs.items() if j.created_at < cutoff]
@@ -460,53 +346,14 @@ def api_run():
 
     data = request.json or {}
 
-    # Validate
     site_url = (data.get("site_url") or "").strip()
     if not site_url or not site_url.startswith("http"):
         return jsonify({"error": "Invalid site_url"}), 400
 
-    # Build config
-    figma_token    = (data.get("figma_token") or "").strip()
-    figma_file_id  = (data.get("figma_file_id") or "").strip()
-    raw_frames     = data.get("page_frames") or []  # [{path, frames: {Desktop: id, Tablet: id, Mobile: id}}]
-    page_frames    = {}
-    for r in raw_frames:
-        p = (r.get("path") or "").strip().rstrip("/") or "/"
-        vp_frames = r.get("frames") or {}
-        if vp_frames:
-            page_frames[p] = {k: v for k, v in vp_frames.items() if v}
-
-    raw_viewports  = data.get("viewports") or []
-    viewports = []
-    for vp in raw_viewports:
-        try:
-            viewports.append({"name": str(vp["name"]), "width": int(vp["width"]), "height": int(vp["height"])})
-        except Exception:
-            pass
-    if not viewports:
-        viewports = [
-            {"name": "Desktop", "width": 1440, "height": 900},
-            {"name": "Tablet",  "width": 768,  "height": 1024},
-            {"name": "Mobile",  "width": 375,  "height": 812},
-        ]
-
-    # frame_names: dict mapping node_id → display name, used for readable log messages
-    frame_names = data.get("frame_names") or {}
-
     config = {
-        "site_url": site_url,
-        "figma": {
-            "api_token":   figma_token,
-            "file_id":     figma_file_id,
-            "page_frames": page_frames,
-        },
-        "viewports":         viewports,
-        "diff_threshold":    int(data.get("diff_threshold", 10)),
-        "timeout_ms":        int(data.get("timeout_ms", 15000)),
-        "seo_only":          bool(data.get("seo_only", False)),
-        "skip_css_extract":  bool(data.get("skip_css_extract", False)),
-        "frame_names":       {str(k): str(v) for k, v in frame_names.items()},
-        "output_dir":        REPORTS_DIR,
+        "site_url":   site_url,
+        "timeout_ms": int(data.get("timeout_ms", 15000)),
+        "output_dir": REPORTS_DIR,
     }
 
     job_id = uuid.uuid4().hex[:10]
@@ -522,7 +369,6 @@ def api_run():
 
 @app.route("/api/status/<job_id>")
 def api_status(job_id: str):
-    """Poll job status + incremental logs."""
     with _jobs_lock:
         job = _jobs.get(job_id)
     if not job:
@@ -531,70 +377,20 @@ def api_status(job_id: str):
     return jsonify(job.to_dict(include_logs_from=since))
 
 
-@app.route("/api/figma/validate", methods=["POST"])
-def api_figma_validate():
-    """Quick token+file validation — called before starting a job."""
-    data    = request.json or {}
-    token   = (data.get("api_token") or "").strip()
-    file_id = (data.get("file_id") or "").strip()
-    if not token:
-        return jsonify({"ok": False, "error": "No API token provided"}), 400
-    if not file_id:
-        return jsonify({"ok": False, "error": "No File ID provided"}), 400
-    try:
-        from modules.figma import FigmaClient
-        client = FigmaClient(token, file_id)
-        # Just fetch file metadata — lightweight, no frames needed
-        client.list_frames()
-        return jsonify({"ok": True})
-    except Exception as e:
-        return jsonify({"ok": False, "error": str(e)}), 400
-
-
-@app.route("/api/figma/frames", methods=["POST"])
-def api_figma_frames():
-    """Lists all frames in a Figma file. Used by the UI for mapping setup."""
-    data = request.json or {}
-    token   = (data.get("api_token") or "").strip()
-    file_id = (data.get("file_id") or "").strip()
-
-    if not token or not file_id:
-        return jsonify({"error": "api_token and file_id are required"}), 400
-
-    only_dev_ready = bool(data.get("only_dev_ready", False))
-    try:
-        from modules.figma import FigmaClient
-        client = FigmaClient(token, file_id)
-        frames = client.list_frames(only_dev_ready=only_dev_ready)
-        return jsonify({"frames": frames})
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
-
-
 @app.route("/reports/<job_id>/report.html")
 def serve_report(job_id: str):
-    """Serves the generated HTML report."""
     report_dir = os.path.join(REPORTS_DIR, job_id)
     if not os.path.exists(os.path.join(report_dir, "report.html")):
         abort(404)
     return send_from_directory(report_dir, "report.html")
 
 
-@app.route("/reports/<job_id>/screenshots/<filename>")
-def serve_screenshot(job_id: str, filename: str):
-    """Serves individual screenshot files referenced by the report."""
-    shots_dir = os.path.join(REPORTS_DIR, job_id, "screenshots")
-    return send_from_directory(shots_dir, filename)
-
-
 @app.route("/api/jobs")
 def api_jobs():
-    """Returns a list of recent jobs (most recent first), including persisted history."""
     with _jobs_lock:
         mem_jobs = list(_jobs.values())
     mem_ids = {j.id for j in mem_jobs}
 
-    # Load persisted jobs that are no longer in memory
     disk_jobs = [d for d in _load_disk_jobs() if d["id"] not in mem_ids]
 
     combined = [{
@@ -612,7 +408,6 @@ def api_jobs():
 
 @app.route("/api/pages")
 def api_pages():
-    """Discovers pages from a site's sitemap. Used to populate path dropdowns."""
     url = (request.args.get("url") or "").strip()
     if not url or not url.startswith("http"):
         return jsonify({"error": "Invalid URL"}), 400
@@ -632,7 +427,6 @@ def api_pages():
 
 @app.route("/api/rerun/<job_id>", methods=["POST"])
 def api_rerun(job_id: str):
-    """Re-runs a completed job using its saved config."""
     if _running_job_count() >= MAX_CONCURRENT_JOBS:
         return jsonify({"error": f"Max concurrent jobs ({MAX_CONCURRENT_JOBS}) reached."}), 429
 

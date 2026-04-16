@@ -87,17 +87,6 @@ _EXTRACT_JS = """() => {
         if (m) placeholderMatches.push(m[0]);
     });
 
-    // Page performance timing
-    const navEntry = performance.getEntriesByType('navigation')[0];
-    const paintEntries = performance.getEntriesByType('paint');
-    const fcpEntry = paintEntries.find(p => p.name === 'first-contentful-paint');
-    const perf = navEntry ? {
-        ttfb:               Math.round(navEntry.responseStart - navEntry.requestStart),
-        dom_content_loaded: Math.round(navEntry.domContentLoadedEventEnd - navEntry.startTime),
-        load_time:          Math.round(navEntry.loadEventEnd - navEntry.startTime),
-        fcp:                fcpEntry ? Math.round(fcpEntry.startTime) : null,
-    } : null;
-
     return {
         title:               document.title || null,
         meta_description:    get('meta[name="description"]'),
@@ -119,7 +108,6 @@ _EXTRACT_JS = """() => {
         broken_images:       [...new Set(brokenImages)],
         images_without_alt:  [...new Set(imagesWithoutAlt)],
         placeholder_matches: placeholderMatches,
-        perf:                perf,
     };
 }"""
 
@@ -340,35 +328,6 @@ def _score_page_checks(raw: dict, page_url: str, console_errors: list = None) ->
                              "\n".join(errs[:10])))
     else:
         checks.append(_check("Console Errors", "pass", "No console errors detected", None))
-
-    # Page speed (from Navigation Timing API — measured in the browser)
-    perf = raw.get("perf")
-    if perf and isinstance(perf, dict):
-        load_ms = perf.get("load_time")
-        ttfb_ms = perf.get("ttfb")
-        fcp_ms  = perf.get("fcp")
-        parts   = []
-
-        if load_ms is not None:
-            parts.append(f"loaded in {load_ms}ms")
-        if fcp_ms is not None:
-            parts.append(f"first paint {fcp_ms}ms")
-        if ttfb_ms is not None:
-            parts.append(f"server {ttfb_ms}ms")
-        metrics = " · ".join(parts) if parts else "Measured"
-
-        # Score: fail if load > 5s or TTFB > 1.2s; warn if load > 3s or TTFB > 0.6s
-        if (load_ms is not None and load_ms > 5000) or (ttfb_ms is not None and ttfb_ms > 1200):
-            detail = f"Slow — {metrics}"
-            checks.append(_check("Page Speed", "fail", detail, None))
-        elif (load_ms is not None and load_ms > 3000) or (ttfb_ms is not None and ttfb_ms > 600):
-            detail = f"Could be faster — {metrics}"
-            checks.append(_check("Page Speed", "warn", detail, None))
-        else:
-            detail = f"Fast — {metrics}"
-            checks.append(_check("Page Speed", "pass", detail, None))
-    else:
-        checks.append(_check("Page Speed", "warn", "Timing data unavailable", None))
 
     return checks
 

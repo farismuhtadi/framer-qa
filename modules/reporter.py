@@ -571,6 +571,29 @@ def _render_html(*, site_url, date_str, total_pages, total_pass, total_warn,
     text-overflow: ellipsis;
     white-space: nowrap;
   }}
+  .check-action-pill {{
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 2px 9px;
+    border-radius: 20px;
+    font-size: 11px;
+    font-weight: 600;
+    color: #6941c6;
+    background: #f4f3ff;
+    border: 1px solid #d9d6fe;
+    text-decoration: none;
+    white-space: nowrap;
+    flex-shrink: 0;
+    transition: background .15s, border-color .15s;
+    letter-spacing: 0;
+  }}
+  .check-action-pill:hover {{
+    background: #ede9fe;
+    border-color: #c4b5fd;
+    text-decoration: none;
+  }}
+  .check-action-pill svg {{ flex-shrink: 0; }}
 
   /* ── Footer ── */
   .footer {{
@@ -862,7 +885,12 @@ def _render_page(result: dict) -> str:
         elif value and value != detail:
             truncated = (value[:100] + "…") if len(value) > 100 else value
             value_html = f'<span class="check-value">{_esc(truncated)}</span>'
-        check_rows += f'<div class="check-row {st}"><span class="check-icon">{icon}</span><span class="check-name">{name}</span><span class="check-detail">{_esc(detail)}</span>{value_html}</div>\n'
+        action_pill = ""
+        if name == "Image Alt Text" and st == "warn":
+            action_pill = ('<a class="check-action-pill" href="https://www.framer.com/marketplace/plugins/assetify-advanced-assets-manager" target="_blank">'
+                           '<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>'
+                           ' Use Assetify in Framer</a>')
+        check_rows += f'<div class="check-row {st}"><span class="check-icon">{icon}</span><span class="check-name">{name}</span><span class="check-detail">{_esc(detail)}</span>{value_html}{action_pill}</div>\n'
 
     return f"""
 <div class="page-card" id="page-{safe_id}">
